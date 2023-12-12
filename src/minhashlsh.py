@@ -40,8 +40,6 @@ parser.add_argument("--clean_cache",type=str,help="wheter to clean HF cache",def
 parser.add_argument("--save",type=str,help="help wheter to save outputs",default='false')
 parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="/scratch/project_462000086/data/redpajama-v2")
 
-args = parser.parse_args()
-
 #ensures that the Union Find data structure
 #is not copied to child processes as long as it is not modified
 mp.set_start_method("fork", force=True)
@@ -59,7 +57,17 @@ def naive_data_collator(batch):
 
     
 
-def load_data(path,signature):
+def load_data(path,signature,cache_dir):
+    """Load minhash data
+
+    Args:
+        path (list,str): path to sinle file, dir or list of files 
+        signature (str): signature to be used in dedup
+        cache_dir (str): HF cache dir
+
+    Returns:
+        IterableDataset: the data in minimal format
+    """    
     signatures = ['signature_sim1.0', 'signature_sim0.9', 'signature_sim0.8', 'signature_sim0.7']
     if isinstance(path,list):
         print(f"Starting loading {len(path)} files...")
@@ -70,21 +78,30 @@ def load_data(path,signature):
         else:
             data_files = path
     #use split parameter to obtain Dataset-object
-    data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=args.cache_dir,streaming=True)
-    #data = datasets.Dataset.from_generator(dataset_generator,gen_kwargs={"shards":data_files},num_proc=args.num_proc)
+    data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=cache_dir,streaming=True)
     signatures.remove(signature)
     data = data.rename_column(signature, "signature")
     data = data.remove_columns(signatures)
     return data
 
-def cluster_hashes(data):
+def cluster_hashes(data,batch_size,num_workers,signature):
+    """Find clusters for signatures
+
+    Args:
+        data (IterableDataset): dataset to be clustered
+        batch_size (int): batch size
+        num_workers (int): number of processes
+        signature (str): signature to define right n of bands
+
+    Returns:
+        UnionFind: union find structure
+        int: number of samples in data
+    """    
     #set n_bands based in RedPajama 2 quality annotations table
-    # compute clursters with UnionFind
     n_bands = {'signature_sim0.7':14,'signature_sim0.8':9,'signature_sim0.9':5,'signature_sim1.0':1}
     uf = UnionFind()
-    hash_tables: list[dict[int, set]] = [defaultdict(set) for _ in range(n_bands[args.signature])]
-    
-    dataloader = DataLoader(data, batch_size=args.batch_size,num_workers=args.num_proc,collate_fn=naive_data_collator)
+    hash_tables: list[dict[int, set]] = [defaultdict(set) for _ in range(n_bands[signature])]
+    dataloader = DataLoader(data, batch_size=batch_size,num_workers=num_workers,collate_fn=naive_data_collator)
     n_samples = 0
     for batch in dataloader:
         n_samples+=len(batch)
@@ -95,6 +112,8 @@ def cluster_hashes(data):
             # find the cluster id of every document
             for i, h in enumerate(item["signature"]):
                 hash_tables[i][h].add(item["id_int"])
+                
+    # compute clursters with UnionFind
     for table in tqdm(hash_tables, dynamic_ncols=True, desc="Building hash tables..."):
         # cluster: Set[int]
         for cluster in table.values():
@@ -105,7 +124,7 @@ def cluster_hashes(data):
                 uf.union(x, idx)
     return uf,n_samples
 
-def deduplicate(uf_object,ds,output_path=None):
+def deduplicate(uf_object,ds,batch_size,num_proc,output_path=None):
     """Deduplicate the data and save it to disk
 
     Args:
@@ -128,10 +147,10 @@ def deduplicate(uf_object,ds,output_path=None):
     ds = ds.filter(function=lambda example: example["__cluster__"] == example['id_int'])
     #remove signature, not needed anymore
     ds = ds.remove_columns(['signature'])
-    dataloader = DataLoader(ds, batch_size=args.batch_size,num_workers=args.num_proc,collate_fn=naive_data_collator)
+    dataloader = DataLoader(ds, batch_size=batch_size,num_workers=num_proc,collate_fn=naive_data_collator)
     gc.freeze()
     gc.disable()
-    if args.save == 'true':
+    if args.save == 'true' and output_path is not None:
         with open(output_path, 'w') as jsonl_file:
             for batch in dataloader:
                 for json_object in batch:
@@ -154,6 +173,8 @@ def deduplicate(uf_object,ds,output_path=None):
     return None
         
 if __name__ == "__main__":
+    args = parser.parse_args()
+    
     if args.testing == 'data':
         duplicate_files = args.data_path
         files = gather_files(duplicate_files)
@@ -162,13 +183,13 @@ if __name__ == "__main__":
         t = Timer()
         files_to_dedup = sorted_by_lang[10000:10500]
         with t("Load data"):
-            data = load_data(files_to_dedup,args.signature)
+            data = load_data(files_to_dedup,args.signature,args.cache_dir)
         print(f"Time data loading: {int(t.elapsed_times.get('Load data', 0))}s OR {int(t.elapsed_times.get('Load data', 0)/60)}m OR {int(t.elapsed_times.get('Load data', 0)/60/60)}h")
         with t("Cluster"):
-            hash_clusters,n_samples = cluster_hashes(data)
+            hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=args.num_proc,signature=args.signature)
         print(f"Time clustering: {int(t.elapsed_times.get('Cluster', 0))}s OR {int(t.elapsed_times.get('Cluster', 0)/60)}m OR {int(t.elapsed_times.get('Cluster', 0)/60/60)}h")
         with t("Dedup"):
-            deduplicate(hash_clusters,data,output_path=f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl")
+            deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=args.num_proc,output_path=f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl")
         print(f"Time dedup: {int(t.elapsed_times.get('Dedup', 0))}s OR {int(t.elapsed_times.get('Dedup', 0)/60)}m OR {int(t.elapsed_times.get('Dedup', 0)/60/60)}h")
 
         with open(f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl", "r") as f:
