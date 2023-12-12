@@ -124,7 +124,7 @@ def cluster_hashes(data,batch_size,num_workers,signature):
                 uf.union(x, idx)
     return uf,n_samples
 
-def deduplicate(uf_object,ds,batch_size,num_proc,output_path=None):
+def deduplicate(uf_object,ds,batch_size,num_proc,save,output_path=None):
     """Deduplicate the data and save it to disk
 
     Args:
@@ -145,12 +145,12 @@ def deduplicate(uf_object,ds,batch_size,num_proc,output_path=None):
     ds = ds.map(set_clusters)
     #discard every document that is not the parent of a cluster (that means we keep only one document for each cluster of duplicates and unique documents):
     ds = ds.filter(function=lambda example: example["__cluster__"] == example['id_int'])
-    #remove signature, not needed anymore
-    ds = ds.remove_columns(['signature'])
+    #use only id as it's needed for dedup later
+    ds = ds.select_columns(['id'])
     dataloader = DataLoader(ds, batch_size=batch_size,num_workers=num_proc,collate_fn=naive_data_collator)
     gc.freeze()
     gc.disable()
-    if args.save == 'true' and output_path is not None:
+    if save == 'true' and output_path is not None:
         with open(output_path, 'w') as jsonl_file:
             for batch in dataloader:
                 for json_object in batch:
@@ -186,16 +186,16 @@ if __name__ == "__main__":
             data = load_data(files_to_dedup,args.signature,args.cache_dir)
         print(f"Time data loading: {int(t.elapsed_times.get('Load data', 0))}s OR {int(t.elapsed_times.get('Load data', 0)/60)}m OR {int(t.elapsed_times.get('Load data', 0)/60/60)}h")
         with t("Cluster"):
-            hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=args.num_proc,signature=args.signature)
+            hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=args.num_proc,signature=args.signature,)
         print(f"Time clustering: {int(t.elapsed_times.get('Cluster', 0))}s OR {int(t.elapsed_times.get('Cluster', 0)/60)}m OR {int(t.elapsed_times.get('Cluster', 0)/60/60)}h")
         with t("Dedup"):
-            deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=args.num_proc,output_path=f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl")
+            deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=args.num_proc,save=args.save,output_path=f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl")
         print(f"Time dedup: {int(t.elapsed_times.get('Dedup', 0))}s OR {int(t.elapsed_times.get('Dedup', 0)/60)}m OR {int(t.elapsed_times.get('Dedup', 0)/60/60)}h")
 
         with open(f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl", "r") as f:
             num_dedupped_lines = sum(1 for _ in f)
 
-        print(f"Len before dedup: {len(n_samples)}")
+        print(f"Len before dedup: {n_samples}")
         print(f"Len after dedup: {num_dedupped_lines}")
         
     elif args.testing == 'func':
