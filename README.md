@@ -29,17 +29,24 @@
 - `minhashlsh.py` contains building blocks for almost all other modules, it can be used as reference
 
 1. Download data needed for one crawl TODO
+    -  Dowload data connected to one crawl and save into format
+    ```
+    ── full_data
+    ├── crawl_number
+        ├── 0000
+            ├── en_head.json.gz
+            ├── ...
+            ├── it_middle.json.gz
+        ├── 0001
+        ...
+        ├── 4999
+    ```
     -  Total inodes used 200K
-2. Add document ids to texts and prune extra cols TODO
-    - Read 10 000 text files &rarr; roughly 685G mem needed &rarr; must be streamed
-        - example files from `/scratch/project_462000086/data/redpajama-v2/texts-2023-14`
-    - From texts, keep cols `digest` and `raw_content`
-    - Read 10 000 minhash files, keep only col id
-        - example files from `/scratch/project_462000086/data/redpajama-v2/minhash-2023-14`
-    - Concatenate horizontally
-    - Export to jsonl and shard &rarr; use `force_ascii=False` and `orient='"records"`
+2. Add document ids to texts and prune extra cols
+    - `add_document_ids.py`
+        - takes paths to crawl ids and texts as input, ouputs jsonl with ids
+        - works by language
     - Remove original text files &rarr; 150K
-    - After bloom filter dedup, the data size is reduced roughly about 40%
 3. Remove bloom filter duplicates TODO
     - Load the texts with ids as generator
     - Load 10 000 duplicates files
@@ -47,6 +54,7 @@
     - Filter the duplicates based on `digest`
     - Export to jsonl &rarr; use `force_ascii=False` and `orient='"records"`
     - Remove duplicates files &rarr; 100K inodes
+    - After bloom filter dedup, the data size is reduced roughly about 40%
 4. Minhash deduplication
     - Load the bloom filtered texts and keep only the ids
     - Filter the bloom filter duplicates
