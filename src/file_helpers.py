@@ -63,7 +63,8 @@ def custom_file_sort(file_paths,file_type='minhash',sort_criteria='shard'):
     #/scratch/project_462000086/data/redpajama-v2/minhash-2023-14/4832/en_middle.minhash.parquet
     def sort_shard_text(item):
         return int(item[59:63])
-        
+    def sort_lang_text(item):
+        return item[64:66]
     def sort_lang_min(item):
         return item[66:68]
     
@@ -72,6 +73,8 @@ def custom_file_sort(file_paths,file_type='minhash',sort_criteria='shard'):
             
     if sort_criteria=='shard' and file_type == 'text':
         sorted_items = sorted(file_paths, key=sort_shard_text)
+    elif sort_criteria=='lang' and file_type == 'text':
+        sorted_items = sorted(file_paths,key=sort_lang_text)
     elif sort_criteria=='lang' and file_type == 'minhash':
         sorted_items = sorted(file_paths, key=sort_lang_min)
     elif sort_criteria=='lang' and file_type =='duplicates':
@@ -85,14 +88,12 @@ def custom_file_sort(file_paths,file_type='minhash',sort_criteria='shard'):
 
 
 if __name__ == "__main__":
-    duplicate_files = "/scratch/project_462000086/data/redpajama-v2/minhash-2023-14"
-    files = gather_files(duplicate_files)
-
+    text_files = "/scratch/project_462000086/data/redpajama-v2/texts-2023-14"
+    files = gather_files(text_files)
+    sorted_text_files = custom_file_sort(files,file_type='text',sort_criteria='lang')
     print("List of files:")
-    for i,file in enumerate(files):
+    for i,file in enumerate(sorted_text_files):
         print(file)
-        if i == 10:
+        if i == 5:
             break
-    print("Test file:")
-    df = read_parquet_file(files[0])
-    print(df)
+    
