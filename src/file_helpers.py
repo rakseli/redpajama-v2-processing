@@ -1,0 +1,98 @@
+import pandas as pd
+import pyarrow.parquet as pq
+import os
+
+import os
+
+def check_subfolders(directory):
+    for root, dirs, files in os.walk(directory):
+        # Check only subfolders, not the root directory
+        if root != directory:
+            # Get the number of files in the current folder
+            num_files = len(files)
+            
+            # Check if the number of files is not equal to 10
+            if num_files != 10:
+                print(f"Folder '{os.path.relpath(root, directory)}' has {num_files} files instead of 10.")
+
+
+def read_parquet_file(file_path):
+    """
+    Reads a Parquet file and returns its contents as a pandas DataFrame.
+
+    Parameters:
+    - file_path (str): The path to the Parquet file.
+
+    Returns:
+    - pandas.DataFrame: The data from the Parquet file.
+    """
+    try:
+        # Read Parquet file
+        table = pq.read_table(file_path)
+
+        # Convert to pandas DataFrame
+        p_dict = table.to_pydict()
+
+        return p_dict
+    except Exception as e:
+        print(f"Error reading Parquet file: {e}")
+        return None
+
+
+def gather_files(parent_folder:str): 
+    """
+    Recursively gather all files in the parent folder and its subfolders.
+
+    Parameters:
+    - parent_folder (str): The path to the parent folder.
+
+    Returns:
+    - List[str]: A list of file paths.
+    """
+    files_list = []
+
+    for root, dirs, files in os.walk(parent_folder):
+        for file in files:
+            file_path = os.path.join(root, file)
+            files_list.append(file_path)
+
+    return files_list
+
+    
+def custom_file_sort(file_paths,file_type='minhash',sort_criteria='shard'):
+    #/scratch/project_462000086/data/redpajama-v2/minhash-2023-14/4832/en_middle.minhash.parquet
+    def sort_shard_text(item):
+        return int(item[59:63])
+        
+    def sort_lang_min(item):
+        return item[66:68]
+    
+    def sort_lang_dup(item):
+        return item[69:71]
+            
+    if sort_criteria=='shard' and file_type == 'text':
+        sorted_items = sorted(file_paths, key=sort_shard_text)
+    elif sort_criteria=='lang' and file_type == 'minhash':
+        sorted_items = sorted(file_paths, key=sort_lang_min)
+    elif sort_criteria=='lang' and file_type =='duplicates':
+        sorted_items = sorted(file_paths, key=sort_lang_dup)
+    else:
+        raise NotImplementedError("File type or sort criteria are not matching!")
+    
+    return sorted_items
+
+
+
+
+if __name__ == "__main__":
+    duplicate_files = "/scratch/project_462000086/data/redpajama-v2/minhash-2023-14"
+    files = gather_files(duplicate_files)
+
+    print("List of files:")
+    for i,file in enumerate(files):
+        print(file)
+        if i == 10:
+            break
+    print("Test file:")
+    df = read_parquet_file(files[0])
+    print(df)
