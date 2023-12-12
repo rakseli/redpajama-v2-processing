@@ -4,6 +4,7 @@
 - `/scripts` &rarr; slurm scripts
 - `/src` &rarr; src
 ## py-scripts
+- `add_document_ids.py` &rarr; add document ids to text-files
 - `all_downloaded.py` &rarr; check if dir contains 50K files
 - `combine_files.py` &rarr; read `jsonl.gz` and combine them into `jsonl`
 - `download_sample.py` &rarr; download sample of HF datasets
@@ -20,13 +21,14 @@
 - `dowload_file.sh` &rarr; download files from `txt` file
     - gather urls that download failed
     - loop downloading until everything is downloaded
-
+## Singularity
+- Whole code base can be run with container in `/scratch/project_462000086/akselir/containers/preprocessing_container.sif`
 # Pipeline for full data
 - Idea is to process each crawl per language
 - These steps should be combined into one pipeline
 - `minhashlsh.py` contains building blocks for almost all other modules, it can be used as reference
 
-1. Download data needed for one crawl
+1. Download data needed for one crawl TODO
     -  Total inodes used 200K
 2. Add document ids to texts and prune extra cols TODO
     - Read 10 000 text files &rarr; roughly 685G mem needed &rarr; must be streamed
@@ -90,7 +92,7 @@
 # Reference
 - `union_find.py` and `timer.py` unmodified from `text-dedup`
 - `minhashlsh.py` is modified version of `text_dedup/minhash.py`
-- ```json 
+ ```
     @software{chenghao_mou_2023_8364980,
     author       = {Chenghao Mou and
                   Chris Ha and
@@ -102,5 +104,6 @@
     publisher    = {Zenodo},
     version      = {2023.09.20},
     doi          = {10.5281/zenodo.8364980},
-    url          = {https://doi.org/10.5281/zenodo.8364980}}
+    url          = {https://doi.org/10.5281/zenodo.8364980}
+    }
 ```
