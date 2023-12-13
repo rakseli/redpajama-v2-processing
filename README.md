@@ -30,12 +30,14 @@
     - Processing 500/10000 shards &rarr; 3 hours &rarr; 10000/10000 shards &rarr; Union find has time complexity of inverse Ackermann &rarr;  makes disjoint-set operations practically amortized constant time &rarr; 60 hours
     -  `(256GB/2GB) CPU cores x 60 hours = 7680 CPU-core-hours`
 - Rough estimate _(read guess)_ for other processing steps they take 50% of Minhash resources
+```
 | Task        | CPU-core-h /crawl   | Total resources need|
 | ----------- | --------------------|-------------------- |
 | MinhashLSH  | 11520               | 967680              |
 | Other processing|-                | 483840              |
 | ----------------------------------|-------------------- |
 | Total                             | 1451520 / ~6500 eur |
+```
 ## Disk and inode requirements
 - Whole data about 250TB, 4.2M inodes
 - 500TB disk and 20M inodes should be enough to process everything at same time
