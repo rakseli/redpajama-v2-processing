@@ -1,6 +1,5 @@
 # Structure
 ## Dirs
-- `/logs` &rarr; slurm logs
 - `/scripts` &rarr; slurm scripts
 - `/src` &rarr; src
 ## py-scripts
@@ -9,7 +8,7 @@
 - `combine_files.py` &rarr; read `jsonl.gz` and combine them into `jsonl`
 - `download_sample.py` &rarr; download sample of HF datasets
 - `file_helpers.py` &rarr; opening and sorting tools
-- `filter_duplicates.py` &rarr; filter bloom filter duplicates
+- `filter_bool_duplicates.py` &rarr; filter bloom filter duplicates
     - module not ready, stopped to do this when realized all files are not downloaded
 - `inspect_duplicates.py` &rarr; inspect how duplicates look like  
     - module is not working anymore, only reference how to concatenate the datasets
@@ -23,6 +22,24 @@
     - loop downloading until everything is downloaded
 ## Singularity
 - Whole code base can be run with container in `/scratch/project_462000086/akselir/containers/preprocessing_container.sif`
+# Resource requirements
+## Computing requirements
+- Most of data is English &rarr; 14.5B/20.8B docs
+- Resources for other languages is calculated just as 50% of resources needed for English
+- Minhash calculations based on running with 32 cores and 256G mem while processing 1% of full crawl
+    - Processing 500/10000 shards &rarr; 3 hours &rarr; 10000/10000 shards &rarr; Union find has time complexity of inverse Ackermann &rarr;  makes disjoint-set operations practically amortized constant time &rarr; 60 hours
+    -  `(256GB/2GB) CPU cores x 60 hours = 7680 CPU-core-hours`
+- Rough estimate _(read guess)_ for other processing steps they take 50% of Minhash resources
+| Task        | CPU-core-h /crawl   | Total resources need|
+| ----------- | --------------------|-------------------- |
+| MinhashLSH  | 11520               | 967680              |
+| Other processing|-                | 483840              |
+| ----------------------------------|-------------------- |
+| Total                             | 1451520 / ~6500 eur |
+## Disk and inode requirements
+- Whole data about 250TB, 4.2M inodes
+- 500TB disk and 20M inodes should be enough to process everything at same time
+
 # Pipeline for full data
 - Idea is to process each crawl per language
 - These steps should be combined into one pipeline
