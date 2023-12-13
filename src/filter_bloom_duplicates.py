@@ -1,35 +1,34 @@
 import datasets
+import sys
 import argparse
-import json
-
-from minhashlsh import naive_data_collator
-from file_helpers import gather_files, custom_file_sort, read_parquet_file
-from timer import Timer
-from pathlib import Path
-from tqdm import tqdm
 from datasets import load_dataset
+from file_helpers import gather_files, custom_file_sort, check_subfolders
+from timer import Timer
+from tqdm import tqdm
+from pathlib import Path
 from torch.utils.data import DataLoader
 
+'''
+TODO 
+-add crawl logic
+-add filtering mechanism
+- 
+
+'''
 datasets.logging.set_verbosity_error()
-
-'''
-TODO
-Transform into full pipeline form that takes crawl id as argument
-'''
-
 
 parser = argparse.ArgumentParser()
 
+parser.add_argument("--duplicate_path", type=str, help="single file or dir", default='/scratch/project_462000086/data/redpajama-v2/duplicates-2023-14')
 parser.add_argument("--text_path", type=str, help="single file or dir", default='/scratch/project_462000086/data/redpajama-v2/texts-2023-14')
-parser.add_argument("--minhash_path", type=str, help="single file or dir", default='/scratch/project_462000086/data/redpajama-v2/minhash-2023-14')
-parser.add_argument("--lang", type=str, help="which language to combine", default='en')
+parser.add_argument("--lang", type=str, help="which language to filter", default='en')
 parser.add_argument("--cache_dir", type=str, help="`cache_dir` in load_dataset", default="/scratch/project_462000086/data/redpajama-v2/datasets_cache")
-parser.add_argument("--batch_size",type=int,help="batch size to use for dataset iteration",default=10000)
+parser.add_argument("--batch_size",type=int,help="batch size to use for dataset iteration",default=1000)
 parser.add_argument("--num_proc",type=str,help="number of processes for deduplication",default=1)
 parser.add_argument("--clean_cache",type=str,help="wheter to clean HF cache",default='false')
-parser.add_argument("--save",type=str,help="wheter to save outputs",default='false')
-parser.add_argument("--test",type=str,help="wheter to test",default='true')
-parser.add_argument("--output_dir",type=str,help="where to write dataset",default="/scratch/project_462000086/data/redpajama-v2")
+parser.add_argument("--save",type=str,help="help wheter to save outputs",default='true')
+parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="/scratch/project_462000086/data/redpajama-v2")
+args = parser.parse_args()
 
 def load_text_data(path,cache_dir):
     if isinstance(path,list):
@@ -45,7 +44,7 @@ def load_text_data(path,cache_dir):
     data = data.select_columns(['raw_content'])
     return data
 
-def load_id_data(path,cache_dir):
+def load_duplicate_data(path,cache_dir):
     if isinstance(path,list):
         print(f"Starting loading {len(path)} files...")
         data_files = path
@@ -56,9 +55,8 @@ def load_id_data(path,cache_dir):
             data_files = path
     #use split parameter to obtain Dataset-object
     data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=cache_dir,streaming=True)
-    data = data.select_columns(['id'])
+    data = data.select_columns(['raw_content'])
     return data
-
 if __name__ == "__main__":
     args = parser.parse_args()
     text_files = gather_files(args.text_path)

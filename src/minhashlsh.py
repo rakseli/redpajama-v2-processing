@@ -1,17 +1,13 @@
 import datasets
 import numpy as np
 import argparse
-import os
-import sys
 import gc
-import random
-import pickle
 import multiprocessing as mp
 import torch
 import json
 from union_find import UnionFind
 from datasets import load_dataset
-from file_helpers import gather_files, custom_file_sort, read_parquet_file
+from file_helpers import gather_files, custom_file_sort
 from timer import Timer
 from pathlib import Path
 from tqdm import tqdm
@@ -21,8 +17,7 @@ from torch.utils.data import DataLoader
 
 '''
 TODO
-
-
+Transform into full pipeline form that takes crawl id as argument
 '''
 
 
@@ -31,6 +26,7 @@ datasets.logging.set_verbosity_error()
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--data_path", type=str, help="single file or dir", default='/scratch/project_462000086/data/redpajama-v2/minhash-2023-14')
+parser.add_argument("--lang", type=str, help="which language to combine", default='en')
 parser.add_argument("--cache_dir", type=str, help="`cache_dir` in load_dataset", default="/scratch/project_462000086/data/redpajama-v2/datasets_cache")
 parser.add_argument("--batch_size",type=int,help="batch size to use for dataset iteration",default=10000)
 parser.add_argument("--signature",type=str,help="which minhash signature to use",default='signature_sim0.8')
@@ -174,12 +170,10 @@ def deduplicate(uf_object,ds,batch_size,num_proc,save,output_path=None):
         
 if __name__ == "__main__":
     args = parser.parse_args()
-    
     if args.testing == 'data':
         duplicate_files = args.data_path
         files = gather_files(duplicate_files)
-        sorted_by_lang = custom_file_sort(files,sort_criteria='lang')
-        print(f"Total N of files in crawl:{len(sorted_by_lang)}")
+        sorted_by_lang = custom_file_sort(files,file_type='minhash',sort_criteria='lang')
         t = Timer()
         files_to_dedup = sorted_by_lang[10000:10500]
         with t("Load data"):
@@ -232,4 +226,34 @@ if __name__ == "__main__":
         print(dedup_data['text'])
     
     else:
-        print("Run dedup here")
+        print(f"Starting full crawl {args.crawl} MinhashLSH dedup for language {args.lang}")
+        duplicate_files = gather_files(args.data_path) 
+        sorted_by_lang = custom_file_sort(duplicate_files,file_type='minhash',sort_criteria='lang')
+        t = Timer()
+        if args.lang == 'de':
+            files_to_dedup = sorted_by_lang[:9999]
+        elif args.lang == 'en':
+            files_to_dedup = sorted_by_lang[10000:19999]
+        elif args.lang == 'es':
+            files_to_dedup = sorted_by_lang[20000:29999]
+        elif args.lang == 'fr':
+            files_to_dedup = sorted_by_lang[30000:39999]
+        elif args.lang == 'it':
+            files_to_dedup = sorted_by_lang[40000:]
+        else:
+            raise NotImplementedError(f"Only DE, EN, ES, FR and IT available, {args.lang} given!")
+        with t("Load data"):
+            data = load_data(files_to_dedup,args.signature,args.cache_dir)
+        print(f"Time data loading: {int(t.elapsed_times.get('Load data', 0))}s OR {int(t.elapsed_times.get('Load data', 0)/60)}m OR {int(t.elapsed_times.get('Load data', 0)/60/60)}h")
+        with t("Cluster"):
+            hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=args.num_proc,signature=args.signature,)
+        print(f"Time clustering: {int(t.elapsed_times.get('Cluster', 0))}s OR {int(t.elapsed_times.get('Cluster', 0)/60)}m OR {int(t.elapsed_times.get('Cluster', 0)/60/60)}h")
+        with t("Dedup"):
+            deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=args.num_proc,save=args.save,output_path=f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl")
+        print(f"Time dedup: {int(t.elapsed_times.get('Dedup', 0))}s OR {int(t.elapsed_times.get('Dedup', 0)/60)}m OR {int(t.elapsed_times.get('Dedup', 0)/60/60)}h")
+
+        with open(f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl", "r") as f:
+            num_dedupped_lines = sum(1 for _ in f)
+
+        print(f"Len before dedup: {n_samples}")
+        print(f"Len after dedup: {num_dedupped_lines}")
