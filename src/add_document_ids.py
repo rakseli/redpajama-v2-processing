@@ -20,7 +20,7 @@ Transform into full pipeline form that takes crawl id as argument
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--text_path", type=str, help="single file or dir", default='/scratch/project_462000086/data/redpajama-v2/texts-2023-14')
+parser.add_argument("--text_path", type=str, help="parent path for crawls", default='/scratch/project_462000086/data/redpajama-v2/texts-2023-14')
 parser.add_argument("--minhash_path", type=str, help="single file or dir", default='/scratch/project_462000086/data/redpajama-v2/minhash-2023-14')
 parser.add_argument("--lang", type=str, help="which language to combine", default='en')
 parser.add_argument("--cache_dir", type=str, help="`cache_dir` in load_dataset", default="/scratch/project_462000086/data/redpajama-v2/datasets_cache")
