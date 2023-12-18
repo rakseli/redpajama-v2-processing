@@ -14,7 +14,7 @@ echo "N of uniq crawls: $crawl_count"
 mkdir -p $output_path
 for crawl in $uniq_crawls
 do
-    mkdir "$output_path/$crawl"
+    mkdir -p {"$output_path/$crawl/texts","$output_path/$crawl/duplicates","$output_path/$crawl/minhash","$output_path/$crawl/quality_signals"}
     grep -E "/$crawl/[0-9]{4}/[a-z]{2}(_head|_middle)" "/scratch/project_462000086/data/redpajama-v2/urls/$doc_urls" > $output_path/$crawl/$crawl-$doc_urls
     grep -E "/$crawl/[0-9]{4}/[a-z]{2}(_head|_middle)" "/scratch/project_462000086/data/redpajama-v2/urls/$minhash_urls" > $output_path/$crawl/$crawl-$minhash_urls
     grep -E "/$crawl/[0-9]{4}/[a-z]{2}(_head|_middle)" "/scratch/project_462000086/data/redpajama-v2//urls/$q_urls" > $output_path/$crawl/$crawl-$q_urls
