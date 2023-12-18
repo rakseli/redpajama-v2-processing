@@ -40,7 +40,7 @@
 ```
 ## Disk and inode requirements
 - Whole data about 250TB, 4.2M inodes
-- 500TB disk and 20M inodes should be enough to process everything at same time
+- 500TB disk and 50M inodes should be enough to process everything at same time
 
 # Pipeline for full data
 - Idea is to process each crawl per language
