@@ -1,26 +1,27 @@
 #!/bin/bash
 
+start_time=$(date +%s)
 if [ $# -eq 0 ]; then
     echo "Error: At least one positional argument is required."
     exit 1
 fi
 
 # $1 test run true or else
-# $2 is the file containing the urls for one crawl data-type
-# $3 is the output path
-# $4 data type
+# $2 crawl id
+# $3 data_type
 testing="$1"
 
-if [ "$testing" = "true" ] ; then
+if [ "$testing" = "t" ] ; then
     url_file="/scratch/project_462000086/data/redpajama-v2/urls/url_sample.txt"
     output_path="/scratch/project_462000086/data/redpajama-v2/test_dir"
     data_type='duplicates'
-elif [ "$testing" = "false" ] ; then 
-    url_file="$2"
-    output_path="$3"
-    data_type="$4"
+elif [ "$testing" = "f" ] ; then
+    #/scratch/project_462000086/data/redpajama-v2/full_data/2023-14/2023-14-document-urls.txt"
+    url_file="/scratch/project_462000086/data/redpajama-v2/full_data/$2/$2-$3-urls.txt"
+    output_path="/scratch/project_462000086/data/redpajama-v2/full_data/$2"
+    data_type="$3"
 else
-    echo "Error: testing parameter was set wrong $testing givem"
+    echo "Error: testing parameter was set wrong $testing give"
     exit 1
 fi
 
@@ -93,3 +94,12 @@ while [ "$a_d" != true ]
 done
 
 echo "Done"
+
+end_time=$(date +%s)
+runtime_seconds=$((end_time - start_time))
+
+hours=$((runtime_seconds / 3600))
+minutes=$(( (runtime_seconds % 3600) / 60 ))
+seconds=$((runtime_seconds % 60))
+
+echo "DL time for crawl $2 data type $3: $hours hours, $minutes minutes, $seconds seconds"
