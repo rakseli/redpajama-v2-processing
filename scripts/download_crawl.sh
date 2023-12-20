@@ -27,7 +27,7 @@ fi
 #number of urls should be downloaded
 n_urls=$(wc -l "$url_file" | cut -d' ' -f1)
 echo "Number of urls: $n_urls"
-#add one to urls so it takes account failed_downloads when checking if all are downloaded
+#add one to urls so it takes account failed_downloads.txt when checking if all are downloaded
 ((n_urls++))
 
 #how many times failed urls are tried to download
@@ -52,9 +52,6 @@ download_url(){
     actual_size=$(stat -c "%s" "$file_path")
 
     if [ "$(echo "$expected_size" | tr -d '[:space:]')" != "$(echo "$actual_size" | tr -d '[:space:]')" ]; then
-        echo $expected_size
-        echo $actual_size
-        echo "Something failed"
         rm $file_path
         grep -xqF -- "$url" "failed_downloads.txt" || echo "$url" >> "failed_downloads.txt"
         return 1
