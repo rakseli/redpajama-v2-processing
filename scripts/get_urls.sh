@@ -8,7 +8,7 @@ dup_urls="duplicates-urls.txt"
 output_path="/scratch/project_462000086/data/redpajama-v2/full_data"
 
 echo "Fetching unique crawls..."
-uniq_crawls=$(grep -o -E "[0-9]{4}-[0-9]{2}" "../urls/$doc_urls" | awk '!seen[$0]++')
+uniq_crawls=$(grep -o -E "[0-9]{4}-[0-9]{2}" "/scratch/project_462000086/data/redpajama-v2/urls/$doc_urls" | awk '!seen[$0]++')
 crawl_count=$(tr -cd '[:space:]' <<< "$uniq_crawls" | wc -c)
 echo "N of uniq crawls: $crawl_count"
 mkdir -p $output_path
