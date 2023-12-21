@@ -17,9 +17,12 @@
 - `union_find.py` &rarr; [Union Find](https://en.wikipedia.org/wiki/Disjoint-set_data_structure) implementation
 ## bash-scripts
 - `get_urls.sh` &rarr; create separate set of urls for each craw
-- `dowload_file.sh` &rarr; download files from `txt` file
+- `dowload_crawl.sh` &rarr; download files from `txt` file
     - gather urls that download failed
     - loop downloading until everything is downloaded
+    - uses crawl number and data type as positional arguments
+- `download_data_sbatch.sh` &rarr; script to download one crawl all data types
+    - run time 11h &rarr; probably 13 hour reservation enough
 ## Singularity
 - Whole code base can be run with container in `/scratch/project_462000086/akselir/containers/preprocessing_container.sif`
 # Resource requirements
@@ -46,8 +49,9 @@
 - Idea is to process each crawl per language
 - These steps should be combined into one pipeline
 - `minhashlsh.py` contains building blocks for almost all other modules, it can be used as reference
-
-1. Download data needed for one crawl TODO
+1. Create directory structure
+- Run `get_urls.sh`
+2. Download data needed for one crawl
     -  Dowload data connected to one crawl and save into format below
     ```
     ── full_data
@@ -71,27 +75,24 @@
         ...
         ├──quality_signals
     ```
-    - `get_urls.sh`, `dowload_file.sh`, and `/scratch/project_462000086/data/redpajama-v2/full_data` can be used as inspiration
     -  Total inodes used 200K
-2. Add document ids to texts and prune extra cols
+3. Add document ids to texts and prune extra cols
     - `add_document_ids.py`
         - takes paths to one crawl ids and texts as input, ouputs jsonl with ids
         - works by language
-    - Remove original text files &rarr; 150K
-3. Remove bloom filter duplicates TODO
+4. Combine 
+4. Remove bloom filter duplicates TODO
     - Load the texts with ids as generator
-    - Load 10 000 duplicates files
-        - example files from `/scratch/project_462000086/data/redpajama-v2/duplicates-2023-14`
     - Filter the duplicates based on `id`
     - Export to jsonl &rarr; use `force_ascii=False` and `orient='"records"`
     - Remove duplicates files &rarr; 100K inodes
     - After bloom filter dedup, the data size is reduced roughly about 40%
-4. Minhash deduplication
+5. Minhash deduplication
     - Load the bloom filtered texts and keep only the ids
     - Filter the bloom filter duplicates
     - compute clusters and filter &rarr; `minhashlsh.py`
     - remove minhash files &rarr; back at 50K inodes
-5. Quality filtering
+6. Quality filtering
     - Filter with Amandas scripts
     - save
 # Memos from the beginning (probably nothing useful for you here)
@@ -118,16 +119,8 @@
 5. Filter the URLs to only use middle and head buckets and latest crawl
     - `grep -E '/2023-14/[0-9]{4}/[a-z]{2}(_head|_middle)' document-urls.txt > 2023-14-head-middle-urls.txt`
     - repeat for each 
-6. Download the files of latest crawl
-    - Speed
-        - In test run, script is able to get 271 partitions in 10min
-        - If dowload speed is constant, crawl 2023-14 can be downloaded in about 31 hours
-        - For possible delays I'll reserve 33 hours _4 hours should have been enough, mixed files and partitions..._
-7. Move partitions under parent dir
-    - `find . * | grep -P '.*\/[0-9]{4}$' | xargs -n 1 mv -t /scratch/project_462000086/data/redpajama-v2/texts-2023-14/`
-## 2. Bloom filter duplicates
-## 3. Fuzzy deduplication with MinhashLSH
-## 4. Quality filtering
+
+
 # Reference
 - `union_find.py` and `timer.py` unmodified from `text-dedup`
 - `minhashlsh.py` is modified version of `text_dedup/minhash.py`
