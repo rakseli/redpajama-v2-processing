@@ -50,37 +50,30 @@
 - These steps should be combined into one pipeline
 - `minhashlsh.py` contains building blocks for almost all other modules, it can be used as reference
 1. Create directory structure
-- Run `get_urls.sh`
-2. Download data needed for one crawl
-    -  Dowload data connected to one crawl and save into format below
+- Run `get_urls.sh` &rarr; result
+   
     ```
     ── full_data
     ├── crawl_number
         ├──texts
-            ├── 0000
-                ├── en_head.json.gz
-                ├── ...
-                ├── it_middle.json.gz
-            ├── 0001
-            ...
-            ├── 4999
+
         ├──duplicates
-            ├── 0000
-                ├── en_head.duplicates.parquet
-                ├── ...
-                ├── it_middle.duplicates.parquet
-            ├── 0001
-            ...
-            ├── 4999
-        ...
+
         ├──quality_signals
     ```
-    -  Total inodes used 200K
+2. Download data
+    - `download_all_sbatch.sh`
+        - downloads all crawls in array-job using 84 nodes to get maximal DL speed
+    -  Total inodes used 4.2M
 3. Add document ids to texts and prune extra cols
     - `add_document_ids.py`
         - takes paths to one crawl ids and texts as input, ouputs jsonl with ids
         - works by language
-4. Combine 
+4. Combine
+    - `combine_parquet_files.py`
+        - takes data path, d_type and out path as arguments
+        - duplicate combination ~3min
+        - minhash combination
 4. Remove bloom filter duplicates TODO
     - Load the texts with ids as generator
     - Filter the duplicates based on `id`
