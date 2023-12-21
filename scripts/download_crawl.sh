@@ -68,6 +68,12 @@ echo $all_downloaded
 if [ "$all_downloaded" = "true" ] ; then
     a_d=true;
     echo "All files downloaded"
+    end_time=$(date +%s)
+    runtime_seconds=$((end_time - start_time))
+    hours=$((runtime_seconds / 3600))
+    minutes=$(( (runtime_seconds % 3600) / 60 ))
+    seconds=$((runtime_seconds % 60))
+    echo "DL time for crawl $2 data type $3: $hours hours, $minutes minutes, $seconds seconds"
     exit 0 
 else 
     echo "Some downloads failed, starting to loop failed files..."
