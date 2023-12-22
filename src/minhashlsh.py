@@ -75,9 +75,8 @@ def load_data(path,signature,cache_dir):
             data_files = path
     #use split parameter to obtain Dataset-object
     data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=cache_dir,streaming=True)
-    signatures.remove(signature)
     data = data.rename_column(signature, "signature")
-    data = data.remove_columns(signatures)
+    data = data.select_columns(['signature','id','id_int'])
     return data
 
 def cluster_hashes(data,batch_size,num_workers,signature):
