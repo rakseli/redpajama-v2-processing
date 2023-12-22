@@ -4,27 +4,30 @@
 - `/src` &rarr; src
 ## py-scripts
 - `add_document_ids.py` &rarr; add document ids to text-files
-- `all_downloaded.py` &rarr; check if dir contains 50K files
-- `combine_files.py` &rarr; read `jsonl.gz` and combine them into `jsonl`
+- `all_downloaded.py` &rarr; check if dir contains N number of files
+- `combine_jsonl.py` &rarr; read `jsonl.gz` and combine them into `jsonl` &rarr; still TODO
+- `combine_parquet_files.py` &rarr; combines one crawl one d type parquet files
 - `download_sample.py` &rarr; download sample of HF datasets
-- `file_helpers.py` &rarr; opening and sorting tools
-- `filter_bool_duplicates.py` &rarr; filter bloom filter duplicates
-    - module not ready, stopped to do this when realized all files are not downloaded
+- `file_helpers.py` &rarr; gathering, opening and sorting tools
+- `filter_bloom_duplicates.py` &rarr; filter bloom filter duplicates still TODO
 - `inspect_duplicates.py` &rarr; inspect how duplicates look like  
-    - module is not working anymore, only reference how to concatenate the datasets
+    - module is not working anymore, only reference how to concatenate the datasets &rarr; TODO combined format
 - `minhashlsh.py` &rarr; defines hash-clusters and keeps only parent of a cluster
 - `timer.py` &rarr; simple timer
 - `union_find.py` &rarr; [Union Find](https://en.wikipedia.org/wiki/Disjoint-set_data_structure) implementation
 ## bash-scripts
-- `get_urls.sh` &rarr; create separate set of urls for each craw
-- `dowload_crawl.sh` &rarr; download files from `txt` file
+- `combine_parquet_sbatch.sh` &rarr; slurm script to combine parquet files
+- `deduplicate_sbatch.sh` &rarr; slurm script for dedup
+- `download_all_sbatch.sh` &rarr; slurm array script to download all crawls &rarr; can be called by separate idx
+    - one crawl dl time ~17h &rarr; reserve 24h just in case if DL speed is lower when downloading multiple crawls at same time
+- `download_crawl.sh` &rarr; download one crawl one dtype
     - gather urls that download failed
     - loop downloading until everything is downloaded
     - uses crawl number and data type as positional arguments
-- `download_data_sbatch.sh` &rarr; script to download one crawl all data types
-    - run time 17h &rarr; probably 20 hour reservation enough
+- `download_one_crawl_dtype_sbatch.sh` &rarr; slurm script for download one crawl one dtype
+- `get_urls.sh` &rarr; create separate set of urls for each craw can make folder structure
 ## Singularity
-- Whole code base can be run with container in `/scratch/project_462000353/akselir/containers/preprocessing_container.sif`
+- Dedup/combination can be run with `/scratch/project_462000353/akselir/containers/preprocessing_container.sif`
 # Resource requirements
 ## Computing requirements
 - Most of data is English &rarr; 14.5B/20.8B docs
@@ -42,7 +45,7 @@
 | Total                             | 1451520 / ~6500 eur |
 ```
 ## Disk and inode requirements
-- Whole data about 250TB, 4.2M inodes
+- Whole data about 250TB, 16.8M inodes
 - 500TB disk and 50M inodes should be enough to process everything at same time
 
 # Pipeline for full data
@@ -64,7 +67,7 @@
 2. Download data
     - `download_all_sbatch.sh`
         - downloads all crawls in array-job downloading 8 crawls at a time to get maximal DL speed
-    -  Total inodes used 4.2M
+    -  Total inodes used 16.8M
 3. Add document ids to texts and prune extra cols
     - `add_document_ids.py`
         - takes paths to one crawl ids and texts as input, ouputs jsonl with ids
@@ -72,8 +75,9 @@
 4. Combine
     - `combine_parquet_files.py`
         - takes data path, d_type and out path as arguments
-        - duplicate combination ~3min
-        - minhash combination
+        - duplicate combination ~3m
+        - minhash combination ~3h
+    - jsonl combination TODO
 4. Remove bloom filter duplicates TODO
     - Load the texts with ids as generator
     - Filter the duplicates based on `id`
