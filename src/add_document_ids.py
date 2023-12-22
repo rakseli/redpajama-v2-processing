@@ -20,16 +20,16 @@ Transform into full pipeline form that takes crawl id as argument
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--text_path", type=str, help="parent path for crawls", default='/scratch/project_462000086/data/redpajama-v2/texts-2023-14')
-parser.add_argument("--minhash_path", type=str, help="single file or dir", default='/scratch/project_462000086/data/redpajama-v2/minhash-2023-14')
+parser.add_argument("--text_path", type=str, help="parent path for crawls", default='/scratch/project_462000353/data/redpajama-v2/texts-2023-14')
+parser.add_argument("--minhash_path", type=str, help="single file or dir", default='/scratch/project_462000353/data/redpajama-v2/minhash-2023-14')
 parser.add_argument("--lang", type=str, help="which language to combine", default='en')
-parser.add_argument("--cache_dir", type=str, help="`cache_dir` in load_dataset", default="/scratch/project_462000086/data/redpajama-v2/datasets_cache")
+parser.add_argument("--cache_dir", type=str, help="`cache_dir` in load_dataset", default="/scratch/project_462000353/data/redpajama-v2/datasets_cache")
 parser.add_argument("--batch_size",type=int,help="batch size to use for dataset iteration",default=10000)
 parser.add_argument("--num_proc",type=str,help="number of processes for deduplication",default=1)
 parser.add_argument("--clean_cache",type=str,help="wheter to clean HF cache",default='false')
 parser.add_argument("--save",type=str,help="wheter to save outputs",default='false')
 parser.add_argument("--test",type=str,help="wheter to test",default='true')
-parser.add_argument("--output_dir",type=str,help="where to write dataset",default="/scratch/project_462000086/data/redpajama-v2")
+parser.add_argument("--output_dir",type=str,help="where to write dataset",default="/scratch/project_462000353/data/redpajama-v2")
 
 def load_text_data(path,cache_dir):
     if isinstance(path,list):

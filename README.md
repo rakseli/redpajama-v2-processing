@@ -24,7 +24,7 @@
 - `download_data_sbatch.sh` &rarr; script to download one crawl all data types
     - run time 17h &rarr; probably 20 hour reservation enough
 ## Singularity
-- Whole code base can be run with container in `/scratch/project_462000086/akselir/containers/preprocessing_container.sif`
+- Whole code base can be run with container in `/scratch/project_462000353/akselir/containers/preprocessing_container.sif`
 # Resource requirements
 ## Computing requirements
 - Most of data is English &rarr; 14.5B/20.8B docs

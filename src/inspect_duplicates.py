@@ -1,11 +1,11 @@
 from datasets import load_from_disk, load_dataset, concatenate_datasets
 
 #read the data with cluster info
-cluster_data = load_from_disk("/scratch/project_462000086/data/redpajama-v2/clustered_data")
+cluster_data = load_from_disk("/scratch/project_462000353/data/redpajama-v2/clustered_data")
 #get source info
 source_files = cluster_data.info.download_checksums.keys()
-source_files = [f"/scratch/project_462000086/data/redpajama-v2/texts-2023-14/{i[61:-16]}.json.gz" for i in source_files]
-text_data = load_dataset("json",data_files=source_files,cache_dir='/scratch/project_462000086/data/redpajama-v2/datasets_cache')
+source_files = [f"/scratch/project_462000353/data/redpajama-v2/texts-2023-14/{i[61:-16]}.json.gz" for i in source_files]
+text_data = load_dataset("json",data_files=source_files,cache_dir='/scratch/project_462000353/data/redpajama-v2/datasets_cache')
 print(text_data)
 text_features = list(text_data['train'].features.keys())
 text_features.remove('raw_content')

@@ -2,7 +2,7 @@
 #SBATCH --job-name=download_one_crawl_data
 #SBATCH --output=../logs/download_one_crawl_dtype_%j.output # Name of stdout output file
 #SBATCH --error=../logs/download_one_crawl_dtype_%j.erros  # Name of stderr error file
-#SBATCH --account=project_462000086
+#SBATCH --account=project_462000353
 #SBATCH --time=04:00:00
 #SBATCH --ntasks=84
 #SBATCH --cpus-per-task=8

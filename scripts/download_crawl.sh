@@ -12,13 +12,13 @@ fi
 testing="$1"
 
 if [ "$testing" = "t" ] ; then
-    url_file="/scratch/project_462000086/data/redpajama-v2/urls/url_sample.txt"
-    output_path="/scratch/project_462000086/data/redpajama-v2/test_dir"
+    url_file="/scratch/project_462000353/data/redpajama-v2/urls/url_sample.txt"
+    output_path="/scratch/project_462000353/data/redpajama-v2/test_dir"
     data_type='duplicates'
 elif [ "$testing" = "f" ] ; then
-    #/scratch/project_462000086/data/redpajama-v2/full_data/2023-14/2023-14-document-urls.txt"
-    url_file="/scratch/project_462000086/data/redpajama-v2/full_data/$2/$2-$3-urls.txt"
-    output_path="/scratch/project_462000086/data/redpajama-v2/full_data/$2"
+    #/scratch/project_462000353/data/redpajama-v2/full_data/2023-14/2023-14-document-urls.txt"
+    url_file="/scratch/project_462000353/data/redpajama-v2/full_data/$2/$2-$3-urls.txt"
+    output_path="/scratch/project_462000353/data/redpajama-v2/full_data/$2"
     data_type="$3"
 else
     echo "Error: testing parameter was set wrong $testing give"
@@ -63,7 +63,7 @@ download_url(){
 export -f download_url
 echo "Starting the download..."
 cat $url_file | parallel -j 8 download_url
-all_downloaded=$(python /scratch/project_462000086/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
+all_downloaded=$(python /scratch/project_462000353/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
 echo $all_downloaded
 if [ "$all_downloaded" = "true" ] ; then
     a_d=true;
@@ -84,7 +84,7 @@ while [ "$a_d" != true ]
     do
     if [ "$max_tries" -gt "$n_tries" ]; then
         cat failed_downloads.txt | parallel -j 8 download_url
-        all_downloaded=$(python /scratch/project_462000086/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
+        all_downloaded=$(python /scratch/project_462000353/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
         if [ "$all_downloaded" = "true" ] ; then
             a_d=true; 
         else 

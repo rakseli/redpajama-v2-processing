@@ -33,7 +33,7 @@ def gather_files(parent_folder:str):
 
     
 def custom_file_sort(file_paths,file_type='minhash',sort_criteria='shard'):
-    #/scratch/project_462000086/data/redpajama-v2/minhash-2023-14/4832/en_middle.minhash.parquet
+    #/scratch/project_462000353/data/redpajama-v2/minhash-2023-14/4832/en_middle.minhash.parquet
     def sort_shard_text(item):
         return int(item[59:63])
     def sort_lang_text(item):
@@ -61,7 +61,7 @@ def custom_file_sort(file_paths,file_type='minhash',sort_criteria='shard'):
 
 
 if __name__ == "__main__":
-    text_files = "/scratch/project_462000086/data/redpajama-v2/texts-2023-14"
+    text_files = "/scratch/project_462000353/data/redpajama-v2/texts-2023-14"
     files = gather_files(text_files)
     sorted_text_files = custom_file_sort(files,file_type='text',sort_criteria='lang')
     print("List of files:")

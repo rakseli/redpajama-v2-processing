@@ -8,7 +8,7 @@ import multiprocessing
 from multiprocessing import Process
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--path", type=str, help="path to parent dir of files",default="/scratch/project_462000086/data/redpajama-v2/full_data")
+parser.add_argument("--path", type=str, help="path to parent dir of files",default="/scratch/project_462000353/data/redpajama-v2/full_data")
 parser.add_argument("--crawl", type=str, help="path to parent dir of files",default="2023-14")             
 parser.add_argument("--d_type", type=str, help="data type to be combined",default='minhash')
 parser.add_argument("--output_dir",type=str ,help="output path",default="combined")
