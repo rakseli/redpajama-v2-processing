@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=8    # N cpus
 #SBATCH --mem-per-cpu=1000
 #SBATCH --partition=standard
-#SBATCH --array=0-6          # Download first 7 crawls
+#SBATCH --array=0-6          # Download first 7 crawls, continue 7-82, 83 has alrady been downloaded
 module purge
 module load LUMI/22.12 
 module load parallel/20230322
