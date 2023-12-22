@@ -1,7 +1,3 @@
-import pandas as pd
-import pyarrow.parquet as pq
-import os
-
 import os
 
 def check_subfolders(directory):
@@ -14,29 +10,6 @@ def check_subfolders(directory):
             # Check if the number of files is not equal to 10
             if num_files != 10:
                 print(f"Folder '{os.path.relpath(root, directory)}' has {num_files} files instead of 10.")
-
-
-def read_parquet_file(file_path):
-    """
-    Reads a Parquet file and returns its contents as a pandas DataFrame.
-
-    Parameters:
-    - file_path (str): The path to the Parquet file.
-
-    Returns:
-    - pandas.DataFrame: The data from the Parquet file.
-    """
-    try:
-        # Read Parquet file
-        table = pq.read_table(file_path)
-
-        # Convert to pandas DataFrame
-        p_dict = table.to_pydict()
-
-        return p_dict
-    except Exception as e:
-        print(f"Error reading Parquet file: {e}")
-        return None
 
 
 def gather_files(parent_folder:str): 
