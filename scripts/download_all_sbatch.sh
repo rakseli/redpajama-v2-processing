@@ -3,13 +3,13 @@
 #SBATCH --output=../logs/download_all_%A_%a.output # Name of stdout output file
 #SBATCH --error=../logs/download_all_%A_%a.erros  # Name of stderr error file
 #SBATCH --account=project_462000086
-#SBATCH --time=15:00:00
-#SBATCH --nodes=84
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mem-per-cpu=1500
+#SBATCH --time=24:00:00      # One crawl downloaded in 17 hours, I don't have idea how the speed change when downloading 8 simultaneously
+#SBATCH --ntasks=1           # Number of tasks                     
+#SBATCH --ntasks-per-node=1  # Number of tasks per node
+#SBATCH --cpus-per-task=8    # N cpus
+#SBATCH --mem-per-cpu=1000
 #SBATCH --partition=standard
-#SBATCH --array=0-83
+#SBATCH --array=0-83%8       # Run 8 jobs at a time
 module purge
 module load LUMI/22.12 
 module load parallel/20230322
@@ -45,4 +45,4 @@ srun \
         bash download_crawl.sh \
         f \
         ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} \
-        texts
+        document
