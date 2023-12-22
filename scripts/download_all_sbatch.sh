@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=8    # N cpus
 #SBATCH --mem-per-cpu=1000
 #SBATCH --partition=standard
-#SBATCH --array=0-6          # Download first 7 crawls, continue 7-82, 83 has alrady been downloaded
+#SBATCH --array=0-6          # Download first 7 crawls, continue 7-82, 83 has alrady been downloaded, when inodes are available use 7-82%8 to download all 8 jobs at a time
 module purge
 module load LUMI/22.12 
 module load parallel/20230322
