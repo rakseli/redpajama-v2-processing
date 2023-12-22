@@ -22,7 +22,7 @@
     - loop downloading until everything is downloaded
     - uses crawl number and data type as positional arguments
 - `download_data_sbatch.sh` &rarr; script to download one crawl all data types
-    - run time 11h &rarr; probably 13 hour reservation enough
+    - run time 17h &rarr; probably 20 hour reservation enough
 ## Singularity
 - Whole code base can be run with container in `/scratch/project_462000086/akselir/containers/preprocessing_container.sif`
 # Resource requirements
@@ -63,7 +63,7 @@
     ```
 2. Download data
     - `download_all_sbatch.sh`
-        - downloads all crawls in array-job using 84 nodes to get maximal DL speed
+        - downloads all crawls in array-job downloading 8 crawls at a time to get maximal DL speed
     -  Total inodes used 4.2M
 3. Add document ids to texts and prune extra cols
     - `add_document_ids.py`
