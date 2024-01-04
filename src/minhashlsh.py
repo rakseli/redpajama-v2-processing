@@ -64,7 +64,7 @@ def load_data(path,signature,cache_dir):
     Returns:
         IterableDataset: the data in minimal format
     """    
-    signatures = ['signature_sim1.0', 'signature_sim0.9', 'signature_sim0.8', 'signature_sim0.7']
+
     if isinstance(path,list):
         print(f"Starting loading {len(path)} files...")
         data_files = path
