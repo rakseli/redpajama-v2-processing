@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=combine_parquet_minhash
-#SBATCH --output=../logs/combine_parquet_minhash_%j.output # Name of stdout output file
-#SBATCH --error=../logs/combine_parquet_minhash_%j.erros  # Name of stderr error file
+#SBATCH --job-name=combine_jsonl
+#SBATCH --output=../logs/combine_jsonl_%j.output # Name of stdout output file
+#SBATCH --error=../logs/combine_jsonl_%j.erros  # Name of stderr error file
 #SBATCH --account=project_462000353
-#SBATCH --time=05:00:00
+#SBATCH --time=04:00:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=7
-#SBATCH --mem-per-cpu=1500
+#SBATCH --cpus-per-task=10
+#SBATCH --mem-per-cpu=1000
 #SBATCH --partition=small
 
 module purge

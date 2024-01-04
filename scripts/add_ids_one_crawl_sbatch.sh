@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=add_ids
-#SBATCH --output=../logs/add_ids_%j.output # Name of stdout output file
-#SBATCH --error=../logs/add_ids_%j.erros  # Name of stderr error file
+#SBATCH --job-name=add_ids_32_cpus
+#SBATCH --output=../logs/add_ids_32_cpus_%j.output # Name of stdout output file
+#SBATCH --error=../logs/add_ids_32_cpus_%j.erros  # Name of stderr error file
 #SBATCH --account=project_462000353
-#SBATCH --time=00:05:00
+#SBATCH --time=01:20:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=1000
-#SBATCH --partition=debug
+#SBATCH --cpus-per-task=36
+#SBATCH --mem-per-cpu=1200
+#SBATCH --partition=small
 
 module purge
 # singularity setup
