@@ -1,5 +1,6 @@
 import os
 import json
+import gzip
 import argparse
 from timer import Timer
 from file_helpers import gather_files
@@ -13,8 +14,13 @@ parser.add_argument("--output_dir",type=str ,help="output path",default="combine
 
 def jsonl_generator(file_paths):
     for fi in file_paths:
-        with open(fi,'r') as f:
-            jsons = f.readlines()
+        if ".gz" in fi:
+            with gzip.open(fi,'r') as f:
+                jsons = f.readlines()
+        else:
+            with open(fi,'r') as f:
+                jsons = f.readlines()
+        
         jsons_decoded = [json.loads(i) for i in jsons]
         yield jsons_decoded
 
