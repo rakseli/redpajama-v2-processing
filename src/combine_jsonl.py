@@ -1,4 +1,3 @@
-import gzip
 import os
 import json
 import argparse
@@ -12,16 +11,16 @@ parser.add_argument("--crawl", type=str, help="path to parent dir of files",defa
 parser.add_argument("--output_dir",type=str ,help="output path",default="combined")
 
 
-def read_gzip_jsonl_generator(file_paths):
+def jsonl_generator(file_paths):
     for fi in file_paths:
-        with gzip.open(fi,'r') as f:
+        with open(fi,'r') as f:
             jsons = f.readlines()
         jsons_decoded = [json.loads(i) for i in jsons]
         yield jsons_decoded
 
 def combine_files(files,output_path,d_type,lang):
     with open(f'{output_path}/{lang}_{d_type}.jsonl', 'w') as out_file:
-        for list_of_jsons in read_gzip_jsonl_generator(files):
+        for list_of_jsons in jsonl_generator(files):
             for l in list_of_jsons:
                 json.dump(l, out_file,ensure_ascii=False)
                 out_file.write('\n')
