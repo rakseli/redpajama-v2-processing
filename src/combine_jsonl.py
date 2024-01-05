@@ -81,4 +81,4 @@ if __name__ == "__main__":
             proc.join()
     
 
-    print(f"jsonl combination: {int(t.elapsed_times.get("jsonl combination", 0))}s OR {int(t.elapsed_times.get("jsonl combination", 0)/60)}m OR {int(t.elapsed_times.get("jsonl combination")/60/60)}h")
+    print(f"jsonl combination: {int(t.elapsed_times.get('jsonl combination', 0))}s OR {int(t.elapsed_times.get('jsonl combination', 0)/60)}m OR {int(t.elapsed_times.get('jsonl combination')/60/60)}h")
