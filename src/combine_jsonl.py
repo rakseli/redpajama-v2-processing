@@ -76,8 +76,8 @@ if __name__ == "__main__":
 
         procs = []
         for lang in ["en","de","it","es","fr"]:
-            p_doc=Process(target=combine_files,args=(file_dict_doc[lang],full_output,'minhash',lang))
-            p_q=Process(target=combine_files,args=(file_dict_q[lang],full_output,'duplicates',lang))
+            p_doc=Process(target=combine_files,args=(file_dict_doc[lang],full_output,'document',lang))
+            p_q=Process(target=combine_files,args=(file_dict_q[lang],full_output,'quality_signals',lang))
             procs.append(p_doc)
             procs.append(p_q)
             p_doc.start()
