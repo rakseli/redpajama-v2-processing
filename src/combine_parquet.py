@@ -7,8 +7,7 @@ from timer import Timer
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--path", type=str, help="path to parent dir of files",default="/scratch/project_462000353/data/redpajama-v2/full_data")
-parser.add_argument("--crawl", type=str, help="path to parent dir of files",default="2023-14")             
-parser.add_argument("--d_type", type=str, help="data type to be combined",default='minhash')
+parser.add_argument("--crawl", type=str, help="path to parent dir of files",default="2014-15")             
 parser.add_argument("--output_dir",type=str ,help="output path",default="combined")
 
 def parquet_generator(file_paths):
@@ -43,7 +42,7 @@ def combine_files(files,output_path,d_type,lang,writer=None):
 if __name__ == "__main__":
     args = parser.parse_args()
     t = Timer()
-    with t(f"Parquet combination"):
+    with t("parquet combination"):
         if len(os.sched_getaffinity(0))<5:
             raise Exception(f"At least 5 CPUs must be available, only {len(os.sched_getaffinity(0))} can be found!")
         full_output = f"{args.path}/{args.crawl}/{args.output_dir}"
@@ -97,6 +96,6 @@ if __name__ == "__main__":
             proc.join()
     
 
-    print(f"Parquet combination: {int(t.elapsed_times.get("Parquet combination", 0))}s OR {int(t.elapsed_times.get("Parquet combination", 0)/60)}m OR {int(t.elapsed_times.get("Parquet combination")/60/60)}h")
+    print(f"Parquet combination: {int(t.elapsed_times.get('parquet combination', 0))}s OR {int(t.elapsed_times.get('parquet combination', 0)/60)}m OR {int(t.elapsed_times.get('parquet combination')/60/60)}h")
     
         
