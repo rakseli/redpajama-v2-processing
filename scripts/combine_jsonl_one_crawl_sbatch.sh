@@ -19,4 +19,4 @@ srun \
     singularity exec \
     -B "$SING_BIND" \
     "$CONTAINER" \
-    python /scratch/project_462000353/akselir/redpajama-v2/src/combine_parquet_files.py
+    python /scratch/project_462000353/akselir/redpajama-v2/src/combine_jsonl.py
