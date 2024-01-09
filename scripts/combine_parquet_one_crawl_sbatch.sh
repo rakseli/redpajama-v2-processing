@@ -3,7 +3,7 @@
 #SBATCH --output=../logs/combine_parquet_%j.output # Name of stdout output file
 #SBATCH --error=../logs/combine_parquet_%j.erros  # Name of stderr error file
 #SBATCH --account=project_462000353
-#SBATCH --time=05:00:00
+#SBATCH --time=08:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem-per-cpu=1000
