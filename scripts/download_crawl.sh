@@ -57,12 +57,18 @@ download_url(){
         grep -xqF -- "$url" "failed_downloads.txt" || echo "$url" >> "failed_downloads.txt"
         return 1
     fi
+    # Check if the file path ends with ".gz"
+    if [[ $file_path == *.gz ]]; then
+        # Decompress using gunzip
+        gunzip "$file_path"
+    fi
+
     }
 
 # Export the function so it can be used by parallel processes
 export -f download_url
 echo "Starting the download..."
-cat $url_file | parallel -j 8 download_url
+cat $url_file | parallel -j 32 download_url
 all_downloaded=$(python /scratch/project_462000353/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
 echo $all_downloaded
 if [ "$all_downloaded" = "true" ] ; then
@@ -83,7 +89,7 @@ fi
 while [ "$a_d" != true ]
     do
     if [ "$max_tries" -gt "$n_tries" ]; then
-        cat failed_downloads.txt | parallel -j 8 download_url
+        cat failed_downloads.txt | parallel -j 32 download_url
         all_downloaded=$(python /scratch/project_462000353/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
         if [ "$all_downloaded" = "true" ] ; then
             a_d=true; 
