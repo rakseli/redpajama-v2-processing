@@ -2,6 +2,7 @@ import os
 import json
 import gzip
 import argparse
+import tqdm
 from timer import Timer
 from file_helpers import gather_files
 from multiprocessing import Process
@@ -25,12 +26,20 @@ def jsonl_generator(file_paths):
         yield jsons_decoded
 
 def combine_files(files,output_path,d_type,lang):
+    print(f"Starting to combine {len(files)} {lang} {d_type} files")
+    done=0
     with open(f'{output_path}/{lang}_{d_type}.jsonl', 'w') as out_file:
         for list_of_jsons in jsonl_generator(files):
-            for l in list_of_jsons:
-                json.dump(l, out_file,ensure_ascii=False)
-                out_file.write('\n')
-        
+            f_t = Timer()
+            with f_t("Single file addition"):    
+                for l in list_of_jsons:
+                    json.dump(l, out_file,ensure_ascii=False)
+                    out_file.write('\n')
+            if lang=='en':
+                print(f"Time for one en {d_type} file combination {f_t.elapsed_times.get('Single file addition', 0)} seconds")
+            done+=1
+            if done % 100 == 0:
+                print(f"Done {done}/{len(files)} {lang} {d_type} files")
 if __name__ == "__main__":
     args = parser.parse_args()
     t = Timer()
