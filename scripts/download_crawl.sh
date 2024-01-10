@@ -32,7 +32,7 @@ echo "Number of urls: $n_urls"
 ((n_urls++))
 
 #how many times failed urls are tried to download
-max_tries=5
+max_tries=10
 n_tries=0
 cd "$output_path/$data_type"
 
