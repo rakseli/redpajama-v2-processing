@@ -65,7 +65,7 @@ def add_id(crawl,file_paths,output,cache_dir):
         if not os.path.exists(f"{output}/{source_file[:4]}"):
             os.mkdir(f"{output}/{source_file[:4]}")
 
-        with open(f"{output}/{source_file[:-3]}l", 'w') as out_file:
+        with open(f"{output}/{source_file}l", 'w') as out_file:
             for l in text_data:
                 json.dump(l, out_file,ensure_ascii=False)
                 out_file.write('\n')
