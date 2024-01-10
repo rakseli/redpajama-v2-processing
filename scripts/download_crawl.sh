@@ -45,7 +45,9 @@ download_url(){
     dir_prefix=$(echo $url | awk -F/ '{print $(NF-1)}')
     wget -q --directory-prefix="$dir_prefix" "$url"
     if [ $? -ne 0 ]; then
-        rm "$file_path"
+        if [ -f "$file_path" ] ; then
+            rm "$file_path"
+        fi
         grep -xqF -- "$url" "failed_downloads.txt" || echo "$url" >> "failed_downloads.txt"
         return 1
     fi
@@ -53,7 +55,9 @@ download_url(){
     actual_size=$(stat -c "%s" "$file_path")
 
     if [ "$(echo "$expected_size" | tr -d '[:space:]')" != "$(echo "$actual_size" | tr -d '[:space:]')" ]; then
-        rm $file_path
+        if [ -f "$file_path" ] ; then
+            rm "$file_path"
+        fi
         grep -xqF -- "$url" "failed_downloads.txt" || echo "$url" >> "failed_downloads.txt"
         return 1
     fi
@@ -62,8 +66,10 @@ download_url(){
         if gunzip -t "$file_path"; then
             # Decompress using gunzip
             gunzip "$file_path"
-        else 
-            rm $file_path
+        else
+            if [ -f "$file_path" ] ; then
+                rm "$file_path"
+            fi
             grep -xqF -- "$url" "failed_downloads.txt" || echo "$url" >> "failed_downloads.txt"
         fi
         
@@ -103,10 +109,11 @@ while [ "$a_d" != true ]
         fi
         ((n_tries++))
         echo "N tries: $n_tries"
-        sleep 10
+        sleep 60
     else
         a_d=true;
         echo "Tried $max_tries times to download missing files but didn't succeed, something must be wrong on server or url..."
+        return 1
     fi
     
 done
