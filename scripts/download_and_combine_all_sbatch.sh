@@ -3,7 +3,7 @@
 #SBATCH --output=../logs/download_and_combine_all_%A_%a.output # Name of stdout output file
 #SBATCH --error=../logs/download_and_combine_all_%A_%a.erros  # Name of stderr error file
 #SBATCH --account=project_462000353
-#SBATCH --time=32:00:00                           # Rough estimate for processing 9 crawls at a time  
+#SBATCH --time=24:00:00                           # Rough estimate for processing 9 crawls at a time  
 #SBATCH --ntasks=1                                # Number of tasks                     
 #SBATCH --ntasks-per-node=1                       # Number of tasks per node
 #SBATCH --cpus-per-task=32                        # N cpus
@@ -82,6 +82,7 @@ for l in "${lang[@]}"; do
   done
 done
 
+echo $combinations
 #combine all jsonl files in parallel processes where 
 srun echo "${combinations[@]}" | parallel -k -j 10 combine_jsonl.sh {}
 
