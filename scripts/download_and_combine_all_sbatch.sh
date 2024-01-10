@@ -34,12 +34,22 @@ srun \
         ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} \
         duplicates
 
+if [ $? -ne 0 ]; then
+    echo "Error: srun failed with non-zero exit code. Exiting."
+    exit 1
+fi
+
 #runtime ~9h
 srun \
         bash download_crawl.sh \
         f \
         ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} \
         minhash
+
+if [ $? -ne 0 ]; then
+    echo "Error: srun failed with non-zero exit code. Exiting."
+    exit 1
+fi
 
 #runtime ~2.5h
 srun  \
@@ -48,6 +58,11 @@ srun  \
         ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} \
         quality_signals
 
+if [ $? -ne 0 ]; then
+    echo "Error: srun failed with non-zero exit code. Exiting."
+    exit 1
+fi
+
 #runtime ~4.5h
 srun  \
         bash download_crawl.sh \
@@ -55,12 +70,21 @@ srun  \
         ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} \
         document
 
+if [ $? -ne 0 ]; then
+    echo "Error: srun failed with non-zero exit code. Exiting."
+    exit 1
+fi
 
 #runtime ~1.5h
 srun singularity exec \
         -B "$SING_BIND" \
         "$CONTAINER" \
         python /scratch/project_462000353/akselir/redpajama-v2/src/add_document_ids.py --crawl ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}
+
+if [ $? -ne 0 ]; then
+    echo "Error: srun failed with non-zero exit code. Exiting."
+    exit 1
+fi
 
 #runtime ~5h
 srun singularity exec \
@@ -69,6 +93,11 @@ srun singularity exec \
          python /scratch/project_462000353/akselir/redpajama-v2/src/combine_parquet.py --crawl ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}
 
 #runtime guess 6h?
+
+if [ $? -ne 0 ]; then
+    echo "Error: srun failed with non-zero exit code. Exiting."
+    exit 1
+fi
 
 # Parameters and options
 lang=("en" "de" "es" "fr" "it")
@@ -86,6 +115,10 @@ echo $combinations
 #combine all jsonl files in parallel processes where 
 srun echo "${combinations[@]}" | parallel -k -j 10 combine_jsonl.sh {}
 
+if [ $? -ne 0 ]; then
+    echo "Error: srun failed with non-zero exit code. Exiting."
+    exit 1
+fi
 
 #remove sharded data
 srun rm -rf /scratch/project_462000353/data/redpajama-v2/full_data/${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}/{document,document_with_ids,duplicates,minhash,quality_signals}
