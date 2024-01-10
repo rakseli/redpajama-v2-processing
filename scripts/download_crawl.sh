@@ -57,10 +57,16 @@ download_url(){
         grep -xqF -- "$url" "failed_downloads.txt" || echo "$url" >> "failed_downloads.txt"
         return 1
     fi
-    # Check if the file path ends with ".gz"
+    # Finally uncompress file if the file path ends with ".gz" 
     if [[ $file_path == *.gz ]]; then
-        # Decompress using gunzip
-        gunzip "$file_path"
+        if gunzip -t "$file_path"; then
+            # Decompress using gunzip
+            gunzip "$file_path"
+        else 
+            rm $file_path
+            grep -xqF -- "$url" "failed_downloads.txt" || echo "$url" >> "failed_downloads.txt"
+        fi
+        
     fi
 
     }
@@ -70,10 +76,9 @@ export -f download_url
 echo "Starting the download..."
 cat $url_file | parallel -j 32 download_url
 all_downloaded=$(python /scratch/project_462000353/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
-echo $all_downloaded
 if [ "$all_downloaded" = "true" ] ; then
     a_d=true;
-    echo "All files downloaded"
+    echo "All files downloaded in first try"
     end_time=$(date +%s)
     runtime_seconds=$((end_time - start_time))
     hours=$((runtime_seconds / 3600))
@@ -98,6 +103,7 @@ while [ "$a_d" != true ]
         fi
         ((n_tries++))
         echo "N tries: $n_tries"
+        sleep 10
     else
         a_d=true;
         echo "Tried $max_tries times to download missing files but didn't succeed, something must be wrong on server or url..."
