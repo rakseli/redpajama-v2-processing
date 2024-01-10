@@ -58,7 +58,7 @@ def add_id(crawl,file_paths,output,cache_dir):
         output (str): output path
         cache_dir (str): HF cache dir
     """    
-    for f in tqdm(file_paths,desc="Adding ids to files"):
+    for f in file_paths:
         text_data = load_text_data(f,cache_dir)
         source_file=list(text_data.info.download_checksums.keys())[0][72:]
         text_data = text_data.map(lambda example,idx: {'id':f"{crawl}/{source_file}/{idx}"}, num_proc=2,with_indices=True)
