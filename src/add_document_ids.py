@@ -12,7 +12,7 @@ from datasets import load_dataset
 from datasets.utils.logging import disable_progress_bar
 from shutil import rmtree
 
-datasets.logging.set_verbosity_error()
+datasets.logging.set_verbosity_critical()
 disable_progress_bar()
 
 datasets.disable_caching()
@@ -44,7 +44,7 @@ def load_text_data(path,cache_dir):
             data_files = path
     #use split parameter to obtain Dataset-object
     data = load_dataset("json",data_files=data_files,cache_dir=cache_dir,split='train')
-    data = data.select_columns(['raw_content','url'])
+    data = data.select_columns(['raw_content','url','date_download'])
     return data
 
 
@@ -99,8 +99,14 @@ if __name__ == "__main__":
                 p.start()
             for proc in procs:
                 proc.join()
+    try:
+        rmtree("/scratch/project_462000353/data/redpajama-v2/datasets_cache")
+    except Exception as e:
+        print(e)
+        pass
     
-    rmtree("/scratch/project_462000353/data/redpajama-v2/datasets_cache")
-    os.mkdir("/scratch/project_462000353/data/redpajama-v2/datasets_cache")
+    if not os.path.exists("/scratch/project_462000353/data/redpajama-v2/datasets_cache"):
+        os.mkdir("/scratch/project_462000353/data/redpajama-v2/datasets_cache")
+        
     print(f"Time adding id: {int(t.elapsed_times.get('Add id', 0))}s OR {int(t.elapsed_times.get('Add id', 0)/60)}m OR {int(t.elapsed_times.get('Add id')/60/60)}h")
     
