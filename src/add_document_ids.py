@@ -12,7 +12,7 @@ from datasets import load_dataset
 from datasets.utils.logging import disable_progress_bar
 from shutil import rmtree
 
-datasets.logging.set_verbosity_critical()
+datasets.utils.logging.set_verbosity(0)
 disable_progress_bar()
 
 datasets.disable_caching()
