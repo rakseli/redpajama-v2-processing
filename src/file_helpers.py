@@ -1,4 +1,7 @@
 import os
+import json
+from datetime import datetime
+
 
 def check_subfolders(directory):
     for root, dirs, files in os.walk(directory):
@@ -58,6 +61,11 @@ def custom_file_sort(file_paths,file_type='minhash',sort_criteria='shard'):
     return sorted_items
 
 
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 if __name__ == "__main__":
