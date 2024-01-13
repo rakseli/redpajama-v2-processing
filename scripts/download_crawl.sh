@@ -43,7 +43,7 @@ download_url(){
     url="$1"
     file_path=$(echo $url | cut -d'/' -f8-)
     dir_prefix=$(echo $url | awk -F/ '{print $(NF-1)}')
-    wget -q --directory-prefix="$dir_prefix" "$url"
+    wget -nc --directory-prefix="$dir_prefix" "$url"
     if [ $? -ne 0 ]; then
         if [ -f "$file_path" ] ; then
             rm "$file_path"
@@ -106,14 +106,16 @@ while [ "$a_d" != true ]
             a_d=true; 
         else 
             a_d=false;
+            #sleep 3min to give server some rest if it's under heavy traffic
+            sleep 180
         fi
         ((n_tries++))
         echo "N tries: $n_tries"
-        sleep 60
+        
     else
         a_d=true;
         echo "Tried $max_tries times to download missing files but didn't succeed, something must be wrong on server or url..."
-        return 1
+        exit 1
     fi
     
 done
