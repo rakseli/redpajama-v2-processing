@@ -4,15 +4,14 @@ import json
 import os
 import numpy as np 
 from multiprocessing import Process
-from file_helpers import gather_files
+from file_helpers import gather_files, DateTimeEncoder, format_duration
 from timer import Timer
 from pathlib import Path
-from tqdm import tqdm
 from datasets import load_dataset
 from datasets.utils.logging import disable_progress_bar
 from shutil import rmtree
 
-datasets.utils.logging.set_verbosity(0)
+datasets.logging.set_verbosity(datasets.logging.CRITICAL)
 disable_progress_bar()
 
 datasets.disable_caching()
@@ -23,6 +22,7 @@ parser.add_argument("--cache_dir", type=str, help="path HF cache dir",default="/
 parser.add_argument("--crawl",type=str,help="crawl id", default='2014-15')
 parser.add_argument("--test",help="whether to test",action='store_true')
 parser.add_argument("--output_dir",type=str,help="where to write dataset",default="document_with_ids")
+
 
 def load_text_data(path,cache_dir):
     """Load document in memory and prune unnecessary cols
@@ -42,8 +42,8 @@ def load_text_data(path,cache_dir):
             data_files = gather_files(path)
         else:
             data_files = path
-    #use split parameter to obtain Dataset-object
-    data = load_dataset("json",data_files=data_files,cache_dir=cache_dir,split='train')
+    #use split parameter to obtain Dataset-object, force download to avoid datasets to use cache dir if its not available
+    data = load_dataset("json",data_files=data_files,cache_dir=cache_dir,split='train',download_mode='force_redownload')
     data = data.select_columns(['raw_content','url','date_download'])
     return data
 
@@ -67,7 +67,7 @@ def add_id(crawl,file_paths,output,cache_dir):
 
         with open(f"{output}/{source_file}l", 'w') as out_file:
             for l in text_data:
-                json.dump(l, out_file,ensure_ascii=False)
+                json.dump(l, out_file,cls=DateTimeEncoder,ensure_ascii=False)
                 out_file.write('\n')
 
         text_data.cleanup_cache_files()
@@ -108,5 +108,5 @@ if __name__ == "__main__":
     if not os.path.exists("/scratch/project_462000353/data/redpajama-v2/datasets_cache"):
         os.mkdir("/scratch/project_462000353/data/redpajama-v2/datasets_cache")
         
-    print(f"Time adding id: {int(t.elapsed_times.get('Add id', 0))}s OR {int(t.elapsed_times.get('Add id', 0)/60)}m OR {int(t.elapsed_times.get('Add id')/60/60)}h")
+    print(f"Time adding id: {format_duration(int(t.elapsed_times.get('Add id', 0)))}")
     
