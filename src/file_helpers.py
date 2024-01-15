@@ -68,6 +68,19 @@ class DateTimeEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+def format_duration(seconds):
+    """Format seconds into nice output
+
+    Args:
+        seconds (int): seconds
+
+    Returns:
+        str: formatted string
+    """    
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{int(hours):02}h:{int(minutes):02}m:{int(seconds):02}s"
+
 if __name__ == "__main__":
     text_files = "/scratch/project_462000353/data/redpajama-v2/texts-2023-14"
     files = gather_files(text_files)
