@@ -3,13 +3,13 @@
 #SBATCH --output=../logs/download_and_combine_all_%A_%a.output # Name of stdout output file
 #SBATCH --error=../logs/download_and_combine_all_%A_%a.erros  # Name of stderr error file
 #SBATCH --account=project_462000353
-#SBATCH --time=24:00:00                           # Rough estimate for processing 9 crawls at a time  
+#SBATCH --time=24:00:00                           # Rough estimate for processing 7 crawls at a time, there is variation due different crawl sizes  
 #SBATCH --ntasks=1                                # Number of tasks                     
 #SBATCH --ntasks-per-node=1                       # Number of tasks per node
-#SBATCH --cpus-per-task=32                        # N cpus
-#SBATCH --mem-per-cpu=1900                        # Out of mem with 1200, let's try 1900
+#SBATCH --cpus-per-task=24                        # N cpus, max 32 used, combinations use only 10 cpu. definitely waste here but done for sake of simplicity
+#SBATCH --mem-per-cpu=1900                        # Was enough for crawls 0-8
 #SBATCH --partition=small
-#SBATCH --array=0-8                            #Download and Process 9 crawls at a time use 7-83%9  
+#SBATCH --array=9-83%7                            #Download and Process 7 crawls at a time use 9-83%7  
 module purge
 module load LUMI/22.12 
 module load parallel/20230322
@@ -35,7 +35,7 @@ srun \
         duplicates
 
 if [ $? -ne 0 ]; then
-    echo "Error: srun failed with non-zero exit code. Exiting."
+    echo "Error: srun downloading duplicates failed with non-zero exit code. Exiting."
     exit 1
 fi
 
@@ -47,7 +47,7 @@ srun \
         minhash
 
 if [ $? -ne 0 ]; then
-    echo "Error: srun failed with non-zero exit code. Exiting."
+    echo "Error: srun downloading minhash failed with non-zero exit code. Exiting."
     exit 1
 fi
 
@@ -59,7 +59,7 @@ srun  \
         quality_signals
 
 if [ $? -ne 0 ]; then
-    echo "Error: srun failed with non-zero exit code. Exiting."
+    echo "Error: srun downloading quality signals failed with non-zero exit code. Exiting."
     exit 1
 fi
 
@@ -71,10 +71,11 @@ srun  \
         document
 
 if [ $? -ne 0 ]; then
-    echo "Error: srun failed with non-zero exit code. Exiting."
+    echo "Error: srun downloading documents failed with non-zero exit code. Exiting."
     exit 1
 fi
 
+#add document ids
 #runtime ~1.5h
 srun singularity exec \
         -B "$SING_BIND" \
@@ -82,43 +83,38 @@ srun singularity exec \
         python /scratch/project_462000353/akselir/redpajama-v2/src/add_document_ids.py --crawl ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}
 
 if [ $? -ne 0 ]; then
-    echo "Error: srun failed with non-zero exit code. Exiting."
+    echo "Error: srun of adding ids failed with non-zero exit code. Exiting."
     exit 1
 fi
 
-#runtime ~5h
+#combine parquet files
+#runtime ~6h
 srun singularity exec \
         -B "$SING_BIND" \
         "$CONTAINER" \
          python /scratch/project_462000353/akselir/redpajama-v2/src/combine_parquet.py --crawl ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}
 
-#runtime guess 6h?
 
 if [ $? -ne 0 ]; then
-    echo "Error: srun failed with non-zero exit code. Exiting."
+    echo "Error: srun combining parquet files failed with non-zero exit code. Exiting."
     exit 1
 fi
 
-# Parameters and options
-lang=("en" "de" "es" "fr" "it")
-data_type=("document" "quality_signals")
 
-# Generate combinations
-combinations=()
-for l in "${lang[@]}"; do
-  for d in "${data_type[@]}"; do
-    combinations+=("${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} $d $l")
-  done
-done
-
-echo $combinations
-#combine all jsonl files in parallel processes where 
-srun echo "${combinations[@]}" | parallel -k -j 10 combine_jsonl.sh {}
+#combine jsonl files
+#runtime for 3T docs was ~3,5h
+srun \
+        bash combine_jsonl.sh \
+        ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}
 
 if [ $? -ne 0 ]; then
-    echo "Error: srun failed with non-zero exit code. Exiting."
+    echo "Error: srun combining jsonl files failed with non-zero exit code. Exiting."
     exit 1
 fi
 
-#remove sharded data
-srun rm -rf /scratch/project_462000353/data/redpajama-v2/full_data/${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}/{document,document_with_ids,duplicates,minhash,quality_signals}
+#finally remove unnecessary files after succesful combination
+#runtime guess 1h?
+srun \
+    bash all_combined.sh \
+    ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]}
+
