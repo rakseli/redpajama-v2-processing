@@ -80,7 +80,7 @@ download_url(){
 # Export the function so it can be used by parallel processes
 export -f download_url
 echo "Starting the download..."
-cat $url_file | parallel -j 32 download_url
+cat $url_file | parallel -j16 download_url
 all_downloaded=$(python /scratch/project_462000353/akselir/redpajama-v2/src/all_downloaded.py --path "$output_path/$data_type" --n_urls "$n_urls")
 if [ "$all_downloaded" = "true" ] ; then
     a_d=true;
