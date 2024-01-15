@@ -1,7 +1,7 @@
 import pyarrow.parquet as pq
 import argparse
 import os
-from file_helpers import gather_files
+from file_helpers import gather_files,format_duration
 from multiprocessing import Process
 from timer import Timer
 
@@ -31,13 +31,15 @@ def combine_files(files,output_path,d_type,lang,writer=None):
         d_type (str): duplicates or minhash
         lang (str): language of data
         writer (pyarrow.parquet.ParquetWriter, optional): Writer for parquet file. Defaults to None.
-    """    
+    """
+    print(f"Starting to combine {d_type} language {lang}")    
     for table in parquet_generator(files):
         if writer is None:
             writer = pq.ParquetWriter(f"{output_path}/{lang}_{d_type}.parquet", table.schema)
         writer.write_table(table=table)
     if writer:
         writer.close()
+    print("Done")
         
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -71,7 +73,7 @@ if __name__ == "__main__":
             elif "fr_" in file:
                 file_dict_min['fr'].append(file)
         
-        for file in file_dict_dup:
+        for file in all_dup_files:
             if "en_" in file:
                 file_dict_dup['en'].append(file)
             elif "de_" in file:
@@ -96,6 +98,6 @@ if __name__ == "__main__":
             proc.join()
     
 
-    print(f"Parquet combination: {int(t.elapsed_times.get('parquet combination', 0))}s OR {int(t.elapsed_times.get('parquet combination', 0)/60)}m OR {int(t.elapsed_times.get('parquet combination')/60/60)}h")
+    print(f"Time parquet combination: {format_duration(int(t.elapsed_times.get('parquet combination', 0)))}")
     
         
