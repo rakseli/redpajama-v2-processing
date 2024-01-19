@@ -106,7 +106,7 @@ if __name__ == "__main__":
         del duplicates
         del dataloader_dup
         
-        for d_type in ['document','quality_signals','minhash']:
+        for d_type in ['document','minhash']:
             with t(f"{lang} {d_type} dedup"):
                 gc.disable()
                 if d_type == 'minhash':
@@ -121,15 +121,7 @@ if __name__ == "__main__":
                     if writer:
                         writer.close()
 
-                elif d_type == 'quality_signals':
-                    data = load_iterable_dataset(f"{args.path}/{args.crawl}/combined/{lang}_{d_type}.jsonl",args.cache_dir,d_type)
-                    data = data.filter(function=lambda example: example["id"] not in id_set)
-                    dataloader= DataLoader(data, batch_size=10000,num_workers=num_cpus,collate_fn=naive_data_collator)
-                    with open(f"{full_output}/{lang}_{d_type}_exact_dedup.jsonl", 'w') as jsonl_file:
-                        for batch in dataloader:
-                            for json_object in batch:
-                                json_line = json.dumps(json_object,cls=DateTimeEncoder,ensure_ascii=False)
-                                jsonl_file.write(json_line + '\n')
+      
                 elif d_type=='document':
                     data = load_iterable_dataset(f"{args.path}/{args.crawl}/combined/{lang}_{d_type}.jsonl",args.cache_dir,d_type)
                     data = data.map(fix_id)
