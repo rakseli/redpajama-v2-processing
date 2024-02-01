@@ -32,7 +32,7 @@ parser.add_argument("--test",help="whether to test",action='store_true')
 parser.add_argument("--strict",help="whether to use strict or loose filtered files",action='store_true')
 parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="fuzzy_dedup_ids")
 parser.add_argument("--cross_crawl_dedup",help="whether to do cross crawl dedup",action='store_true')
-
+parser.add_argument("--lang",type=str,help="what language to do cross crawl dedup",default="en")
 #ensures that the Union Find data structure
 #is not copied to child processes as long as it is not modified
 mp.set_start_method("fork", force=True)
@@ -191,26 +191,26 @@ if __name__ == "__main__":
         out_dir = f"/scratch/project_462000353/data/redpajama-v2/cross_crawl_fuzzy_dedup"
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
-        for lang in ["en","de","it","es","fr"]:
-            print(f"Starting to dedup lang {lang}")
-            all_files = gather_files(args.path)
-            if args.strict:
-                signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered_strict.parquet" in x]
-                output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_strict.jsonl"
-            else:
-                signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered.parquet" in x]
-                output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids.jsonl"
-                
-            data = load_data(signature_files,args.signature,args.cache_dir)
-            with t(f"Cluster {lang}"):
-                hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
-            print(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
-            with t(f"Dedup {lang}"):
-                n_samples_after_dedup=deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=output_file)
-            print(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")            
-            print(f"Len before dedup: {n_samples}")
-            print(f"Len after dedup: {n_samples_after_dedup}")
-            del hash_clusters
+        lang = args.lang
+        print(f"Starting to dedup lang {lang}")
+        all_files = gather_files(args.path)
+        if args.strict:
+            signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered_strict.parquet" in x]
+            output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_strict.jsonl"
+        else:
+            signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered.parquet" in x]
+            output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids.jsonl"
+            
+        data = load_data(signature_files,args.signature,args.cache_dir)
+        with t(f"Cluster {lang}"):
+            hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
+        print(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
+        with t(f"Dedup {lang}"):
+            n_samples_after_dedup=deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=output_file)
+        print(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")            
+        print(f"Len before dedup: {n_samples}")
+        print(f"Len after dedup: {n_samples_after_dedup}")
+        del hash_clusters
     
     elif args.test:
         from hashlib import sha256
