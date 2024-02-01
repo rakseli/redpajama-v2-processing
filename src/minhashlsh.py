@@ -16,10 +16,6 @@ from collections import defaultdict
 from torch.utils.data import DataLoader
 # Modification of https://github.com/ChenghaoMou/text-dedup/blob/main/text_dedup/minhash.py
 
-'''
-TODO
-Transform into full pipeline form that takes crawl id as argument
-'''
 
 datasets.disable_caching()
 
@@ -33,7 +29,8 @@ parser.add_argument("--crawl",type=str,help="crawl id", default='2014-15')
 parser.add_argument("--batch_size",type=int,help="batch size to use for dataset iteration",default=10000)
 parser.add_argument("--signature",type=str,help="which minhash signature to use",default='signature_sim0.8')
 parser.add_argument("--test",help="whether to test",action='store_true')
-parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="fuzzy_dedup")
+parser.add_argument("--strict",help="whether to use strict or loose filtered files",action='store_true')
+parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="fuzzy_dedup_ids")
 parser.add_argument("--cross_crawl_dedup",help="whether to do cross crawl dedup",action='store_true')
 
 #ensures that the Union Find data structure
@@ -65,7 +62,7 @@ def load_data(path,signature,cache_dir):
     """    
 
     if isinstance(path,list):
-        print(f"Starting loading {len(path)} files...")
+        print(f"Using {len(path)} files in dedup")
         data_files = path
     elif isinstance(path,str):
         if Path(path).is_dir():
@@ -146,7 +143,9 @@ def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
     gc.disable()
    
     with open(output_path, 'w') as jsonl_file:
+        n_samples = 0
         for batch in dataloader:
+            n_samples+=len(batch)
             for json_object in batch:
                 json_line = json.dumps(json_object,ensure_ascii=False)
                 jsonl_file.write(json_line + '\n')
@@ -154,7 +153,7 @@ def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
     gc.enable()
     gc.collect()
     
-    return None
+    return n_samples
         
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -167,38 +166,51 @@ if __name__ == "__main__":
             os.mkdir(out_dir)
         for lang in ["en","de","it","es","fr"]:
             print(f"Starting to dedup lang {lang}")
-            full_file_path = f"{args.path}/{args.crawl}/quality_filtered/{lang}_minhash_quality_filtered.parquet"
+            if args.strict:
+                full_file_path = f"{args.path}/{args.crawl}/quality_filtered/{lang}_minhash_quality_filtered_strict.parquet"
+                output_file = f"{out_dir}/{lang}_{args.signature}_fuzzy_dedup_ids_strict.jsonl"
+            else:
+                full_file_path = f"{args.path}/{args.crawl}/quality_filtered/{lang}_minhash_quality_filtered.parquet"
+                output_file = f"{out_dir}/{lang}_{args.signature}_fuzzy_dedup_ids.jsonl"
+                
             data = load_data(full_file_path,args.signature,args.cache_dir)
             with t(f"Cluster {lang}"):
                 hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
             print(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
             with t(f"Dedup {lang}"):
-                deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=f"{out_dir}/{lang}_sing_{args.signature}_fuzzy_dedup_ids.jsonl")
+                n_samples_after_dedup=deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=output_file)
             print(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")
 
-            with open(f"{out_dir}/{lang}_sing_{args.signature}_fuzzy_dedup_ids.jsonl", "r") as f:
-                num_dedupped_lines = sum(1 for _ in f)
+            
             print(f"Len before dedup: {n_samples}")
-            print(f"Len after dedup: {num_dedupped_lines}")
+            print(f"Len after dedup: {n_samples_after_dedup}")
             del hash_clusters
     elif args.cross_crawl_dedup:
+        #dedup corpus per language
         t = Timer()
+        out_dir = f"/scratch/project_462000353/data/redpajama-v2/cross_crawl_fuzzy_dedup"
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
         for lang in ["en","de","it","es","fr"]:
-            full_file_path = f"{args.path}/{args.crawl}/quality_filtered/{lang}_minhash_quality_filtered.parquet"
-            data = load_data(full_file_path,args.signature,args.cache_dir)
-            print(f"Time data loading: {int(t.elapsed_times.get('Load data', 0))}s OR {int(t.elapsed_times.get('Load data', 0)/60)}m OR {int(t.elapsed_times.get('Load data', 0)/60/60)}h")
-            with t("Cluster"):
-                hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=args.num_proc,signature=args.signature,)
-            print(f"Time clustering: {int(t.elapsed_times.get('Cluster', 0))}s OR {int(t.elapsed_times.get('Cluster', 0)/60)}m OR {int(t.elapsed_times.get('Cluster', 0)/60/60)}h")
-            with t("Dedup"):
-                deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=args.num_proc,save=args.save,output_path=f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl")
-            print(f"Time dedup: {int(t.elapsed_times.get('Dedup', 0))}s OR {int(t.elapsed_times.get('Dedup', 0)/60)}m OR {int(t.elapsed_times.get('Dedup', 0)/60/60)}h")
-
-            with open(f"{args.output_dir}/deduplicated_test_data/test_dedup.jsonl", "r") as f:
-                num_dedupped_lines = sum(1 for _ in f)
-
+            print(f"Starting to dedup lang {lang}")
+            all_files = gather_files(args.path)
+            if args.strict:
+                signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered_strict.parquet" in x]
+                output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_strict.jsonl"
+            else:
+                signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered.parquet" in x]
+                output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids.jsonl"
+                
+            data = load_data(signature_files,args.signature,args.cache_dir)
+            with t(f"Cluster {lang}"):
+                hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
+            print(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
+            with t(f"Dedup {lang}"):
+                n_samples_after_dedup=deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=output_file)
+            print(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")            
             print(f"Len before dedup: {n_samples}")
-            print(f"Len after dedup: {num_dedupped_lines}")
+            print(f"Len after dedup: {n_samples_after_dedup}")
+            del hash_clusters
     
     elif args.test:
         from hashlib import sha256
