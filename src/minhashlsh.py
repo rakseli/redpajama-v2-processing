@@ -15,7 +15,9 @@ from tqdm import tqdm
 from collections import defaultdict
 from torch.utils.data import DataLoader
 # Modification of https://github.com/ChenghaoMou/text-dedup/blob/main/text_dedup/minhash.py
-
+#ensures that the Union Find data structure
+#is not copied to child processes as long as it is not modified
+mp.set_start_method("fork", force=True)
 
 datasets.disable_caching()
 
@@ -29,13 +31,11 @@ parser.add_argument("--crawl",type=str,help="crawl id", default='2014-15')
 parser.add_argument("--batch_size",type=int,help="batch size to use for dataset iteration",default=10000)
 parser.add_argument("--signature",type=str,help="which minhash signature to use",default='signature_sim0.8')
 parser.add_argument("--test",help="whether to test",action='store_true')
+parser.add_argument("--test_cross_crawl",help="whether to test cross crawl dedup",action='store_true')
 parser.add_argument("--strict",help="whether to use strict or loose filtered files",action='store_true')
 parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="fuzzy_dedup_ids")
 parser.add_argument("--cross_crawl_dedup",help="whether to do cross crawl dedup",action='store_true')
 parser.add_argument("--lang",type=str,help="what language to do cross crawl dedup",default="en")
-#ensures that the Union Find data structure
-#is not copied to child processes as long as it is not modified
-mp.set_start_method("fork", force=True)
 
 
 def naive_data_collator(batch):
@@ -200,7 +200,8 @@ if __name__ == "__main__":
         else:
             signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered.parquet" in x]
             output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids.jsonl"
-            
+        if args.test_cross_crawl:
+            signature_files = signature_files[:3]  
         data = load_data(signature_files,args.signature,args.cache_dir)
         with t(f"Cluster {lang}"):
             hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
