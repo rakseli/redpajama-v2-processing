@@ -9,17 +9,20 @@ import argparse
 #       a single language: python fuzzy_dedup_job_constructor.py --lang de
 #change the create_slurm_scripts function arguments in main if needed!
 #Check the output logs how close to the estimated count program got when building the hashtables before running out of memory
-#with 454GB mem could build 181M hash tables, so ~2.5GB per 1M, so de would need 3T mem
-#Because the doc counts are only estimates, I test all now with max mem and hope for the best
-
 #FR estimated file size 260G
 #IT estimated file size 150G
 #DE estimated file size 300G
 #ES estimated file size 300G
-
+#with 454GB mem could build 181M hash tables, so ~2.5GB per 1M
+#en 	dedupped 14.5B --> filtered 5.8B 
+#de 	dedupped 1.9B  --> filtered 760M
+#fr 	dedupped 1.6B --> filtered 640M
+#es 	dedupped 1.8B --> filtered  720M	
+#it 	dedupped 0.9B --> filtered  360M
+#Because the doc counts are only estimates, I test all now with max mem and hope for the best
 #First test was with +100G to file sizes to all --> Failed
 #Second test 454GB for all --> Failed and was able to build 181M hash tables
-#Third test 1024GB for all 
+#Third test 1TB for all 
 #Estimated runtime is 30h, increase upto 72h is necessary
 
 parser = argparse.ArgumentParser()
@@ -88,13 +91,13 @@ if __name__ == "__main__":
         if args.all:
             for l in ["it","fr","es","de"]:
                 if l == 'fr':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=32000)
+                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
                 elif l == 'it':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=32000)
+                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
                 elif l=='de':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=32000)
+                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
                 elif l=='es':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=32000)
+                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
 
                 temp_file_name = f"{os.getcwd()}/slurm_job_{l}.sh"
                 with open(temp_file_name,"w") as temp_file:
