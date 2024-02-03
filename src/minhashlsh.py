@@ -11,7 +11,6 @@ from datasets import load_dataset
 from file_helpers import gather_files, format_duration
 from timer import Timer
 from pathlib import Path
-from tqdm import tqdm
 from collections import defaultdict
 from torch.utils.data import DataLoader
 # Modification of https://github.com/ChenghaoMou/text-dedup/blob/main/text_dedup/minhash.py
@@ -103,9 +102,12 @@ def cluster_hashes(data,batch_size,num_workers,signature):
             # find the cluster id of every document
             for i, h in enumerate(item["signature"]):
                 hash_tables[i][h].add(item["id_int"])
-                
+        if n_samples % 1000000:
+            print(f"{n_samples} docs added to hash tables")
+    print(f"Total n docs added into hash tables: {n_samples}")
+    print(f"Starting to cluster the hashes...")       
     # compute clursters with UnionFind
-    for table in tqdm(hash_tables, dynamic_ncols=True, desc="Building hash tables..."):
+    for table in hash_tables:
         # cluster: Set[int]
         for cluster in table.values():
             if len(cluster) <= 1:
