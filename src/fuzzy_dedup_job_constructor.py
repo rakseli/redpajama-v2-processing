@@ -14,7 +14,7 @@ import argparse
 #DE estimated size 300G
 #ES estimated size 300G
 #First test with +100G for all
-#If fails add +200G every round until small partition max 1T
+#If fails add +300G every round until small partition max 1T
 #Estimated runtime is 30h, increase upto 72h is necessary
 
 parser = argparse.ArgumentParser()
@@ -83,13 +83,13 @@ if __name__ == "__main__":
         if args.all:
             for l in ["it","fr","es","de"]:
                 if l == 'fr':
-                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=10000)
+                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
                 elif l == 'it':
-                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=7200)
+                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
                 elif l=='de':
-                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=11200)
+                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
                 elif l=='es':
-                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=11200)
+                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
 
                 temp_file_name = f"{os.getcwd()}/slurm_job_{l}.sh"
                 with open(temp_file_name,"w") as temp_file:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 os.remove(temp_file_name)
         else:
             l = args.lang
-            s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=10000)
+            s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
             temp_file_name = f"{os.getcwd()}/slurm_job_{l}.sh"
             with open(temp_file_name,"w") as temp_file:
                 temp_file.write(s)
