@@ -102,7 +102,7 @@ def cluster_hashes(data,batch_size,num_workers,signature):
             # find the cluster id of every document
             for i, h in enumerate(item["signature"]):
                 hash_tables[i][h].add(item["id_int"])
-        if n_samples % 1000000:
+        if n_samples % 1000000==0:
             print(f"{n_samples} docs added to hash tables")
     print(f"Total n docs added into hash tables: {n_samples}")
     print(f"Starting to cluster the hashes...")       
