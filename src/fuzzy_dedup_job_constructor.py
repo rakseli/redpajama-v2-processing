@@ -8,7 +8,12 @@ import argparse
 #       all languages: python fuzzy_dedup_job_constructor.py --all
 #       a single language: python fuzzy_dedup_job_constructor.py --lang de
 #change the create_slurm_scripts function arguments in main if needed!
-
+# Document counts for languages:
+#de 	1.14B	
+#fr 	960M 	
+#es 	1.08B 	
+#it 	500M
+#Check the output logs how close to the estimated count program got when building the hashtables, before running out of memory 
 #FR estimated size 260G
 #IT estimated size 150G
 #DE estimated size 300G
@@ -85,7 +90,7 @@ if __name__ == "__main__":
                 if l == 'fr':
                     s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
                 elif l == 'it':
-                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
+                    s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=12200)
                 elif l=='de':
                     s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
                 elif l=='es':
