@@ -6,6 +6,8 @@ import gc
 import multiprocessing as mp
 import torch
 import json
+import time
+from datetime import datetime
 from union_find import UnionFind
 from datasets import load_dataset
 from file_helpers import gather_files, format_duration
@@ -18,9 +20,8 @@ from torch.utils.data import DataLoader
 #is not copied to child processes as long as it is not modified
 mp.set_start_method("fork", force=True)
 
+datasets.logging.set_verbosity_debug()
 datasets.disable_caching()
-
-datasets.logging.set_verbosity_error()
 
 parser = argparse.ArgumentParser()
 
@@ -32,6 +33,8 @@ parser.add_argument("--signature",type=str,help="which minhash signature to use"
 parser.add_argument("--test",help="whether to test",action='store_true')
 parser.add_argument("--test_cross_crawl",help="whether to test cross crawl dedup",action='store_true')
 parser.add_argument("--strict",help="whether to use strict or loose filtered files",action='store_true')
+parser.add_argument("--extreme",help="whether to use extreme strict filtered files",action='store_true')
+parser.add_argument("--downsampled",help="whether to downsampled files",action='store_true')
 parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="fuzzy_dedup_ids")
 parser.add_argument("--cross_crawl_dedup",help="whether to do cross crawl dedup",action='store_true')
 parser.add_argument("--lang",type=str,help="what language to do cross crawl dedup",default="en")
@@ -48,7 +51,7 @@ def naive_data_collator(batch):
     return batch
 
 
-def load_data(path,signature,cache_dir):
+def load_data(path,signature,cache_dir,shard_dedup=False):
     """Load minhash data
 
     Args:
@@ -70,11 +73,14 @@ def load_data(path,signature,cache_dir):
             data_files = path
     #use split parameter to obtain Dataset-object
     data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=cache_dir,streaming=True)
-    data = data.rename_column(signature, "signature")
-    data = data.select_columns(['signature','id','id_int'])
+    if shard_dedup:
+        return data
+    else:
+        data = data.rename_column(signature, "signature")
+        data = data.select_columns(['signature','id','id_int'])
     return data
 
-def cluster_hashes(data,batch_size,num_workers,signature):
+def cluster_hashes(data,batch_size,num_workers,signature,use_dataloader=True):
     """Find clusters for signatures
 
     Args:
@@ -93,17 +99,29 @@ def cluster_hashes(data,batch_size,num_workers,signature):
     hash_tables: list[dict[int, set]] = [defaultdict(set) for _ in range(n_bands[signature])]
     dataloader = DataLoader(data, batch_size=batch_size,num_workers=num_workers,collate_fn=naive_data_collator)
     n_samples = 0
-    for batch in dataloader:
-        n_samples+=len(batch)
-        for item in batch:
+    print("Starting to find cluster ids for documents")
+    if use_dataloader:
+        for i,batch in enumerate(dataloader):
+            print(f"Adding batch {i}")
+            n_samples+=len(batch)
+            for item in batch:
+                #appears that some ids are missing signature?
+                if item["signature"] is None:
+                    continue
+                # find the cluster id of every document
+                for i, h in enumerate(item["signature"]):
+                    hash_tables[i][h].add(item["id_int"])
+            
+    else:
+        for item in data:
+            n_samples+=1
             #appears that some ids are missing signature?
             if item["signature"] is None:
                 continue
             # find the cluster id of every document
             for i, h in enumerate(item["signature"]):
                 hash_tables[i][h].add(item["id_int"])
-        if n_samples % 1000000==0:
-            print(f"{n_samples} docs added to hash tables")
+        
     print(f"Total n docs added into hash tables: {n_samples}")
     print(f"Starting to cluster the hashes...")       
     # compute clursters with UnionFind
@@ -117,7 +135,7 @@ def cluster_hashes(data,batch_size,num_workers,signature):
                 uf.union(x, idx)
     return uf,n_samples
 
-def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
+def deduplicate(uf_object,ds,batch_size,num_proc,output_path,use_dataloader=True):
     """Deduplicate the data and save it to disk
 
     Args:
@@ -146,11 +164,17 @@ def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
    
     with open(output_path, 'w') as jsonl_file:
         n_samples = 0
-        for batch in dataloader:
-            n_samples+=len(batch)
-            for json_object in batch:
+        if use_dataloader:
+            for batch in dataloader:
+                n_samples+=len(batch)
+                for json_object in batch:
+                    json_line = json.dumps(json_object,ensure_ascii=False)
+                    jsonl_file.write(json_line + '\n')
+        else:
+            for json_object in ds:
+                n_samples+=1
                 json_line = json.dumps(json_object,ensure_ascii=False)
-                jsonl_file.write(json_line + '\n')
+                jsonl_file.write(json_line + '\n')             
     
     gc.enable()
     gc.collect()
@@ -159,8 +183,9 @@ def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
         
 if __name__ == "__main__":
     args = parser.parse_args()
-    num_cpus=len(os.sched_getaffinity(0))
-    if not args.cross_crawl_dedup:
+    num_cpus=len(os.sched_getaffinity(0))-1
+    print(f"N of CPUs used for data loading and processing: {num_cpus}")
+    if not args.cross_crawl_dedup and not args.test:
         #dedup crawl per language
         t = Timer()
         out_dir = f"{args.path}/{args.crawl}/{args.output_dir}"
@@ -199,12 +224,29 @@ if __name__ == "__main__":
         if args.strict:
             signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered_strict.parquet" in x]
             output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_strict.jsonl"
+            print("Using strictly filtered files in dedup")
+        elif args.extreme:
+            signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered_strictest.parquet" in x]
+            output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_strictest.jsonl"
+            print("Using extreme strict filtered files in dedup")
         else:
-            signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered.parquet" in x]
-            output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids.jsonl"
+            if args.downsampled:
+                all_downsampled = gather_files("/scratch/project_462000353/data/redpajama-v2/downsampled_data")
+                signature_files = [x for x in all_downsampled if f"{lang}_minhash_downsampled_shard_" in x]
+                output_file = f"{out_dir}/{lang}_{args.signature}_downsampled_cross_crawl_fuzzy_dedup_ids.jsonl"
+                print("Using downsampled filtered files in dedup")
+            else:
+                signature_files = [x for x in all_files if f"{lang}_minhash_partial_shard_" in x]
+                output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids.jsonl"
+                if os.path.exists(output_file):
+                    output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_2.jsonl"
+                print("Using partially dedupped filtered files in dedup")
         if args.test_cross_crawl:
-            signature_files = signature_files[:3]  
-        data = load_data(signature_files,args.signature,args.cache_dir)
+            signature_files = signature_files[:3]
+        if "partially_dedupped" in args.path:
+            data = load_data(signature_files,args.signature,args.cache_dir,shard_dedup=True)
+        else:
+            data = load_data(signature_files,args.signature,args.cache_dir)
         with t(f"Cluster {lang}"):
             hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
         print(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
@@ -235,7 +277,7 @@ if __name__ == "__main__":
             return data
         
         def test_dedup(test_data):
-            hash_clusters = cluster_hashes(data=test_data,batch_size=1,num_workers=1,signature=args.signature)
+            hash_clusters,n_samples = cluster_hashes(data=test_data,batch_size=1,num_workers=1,signature=args.signature)
             #def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
             #cluster_hashes(data,batch_size,num_workers,signature)
             print(f"Original data {test_data}")
