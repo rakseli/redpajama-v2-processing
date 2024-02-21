@@ -7,23 +7,12 @@ import argparse
 #This script can be used to run dedup for:
 #       all languages: python fuzzy_dedup_job_constructor.py --all
 #       a single language: python fuzzy_dedup_job_constructor.py --lang de
-#change the create_slurm_scripts function arguments in main if needed!
-#Check the output logs how close to the estimated count program got when building the hashtables before running out of memory
+
 #FR estimated file size 260G
 #IT estimated file size 150G
 #DE estimated file size 300G
 #ES estimated file size 300G
-#with 454GB mem could build 181M hash tables, so ~2.5GB per 1M
-#en 	dedupped 14.5B --> filtered 5.8B 
-#de 	dedupped 1.9B  --> filtered 760M
-#fr 	dedupped 1.6B --> filtered 640M
-#es 	dedupped 1.8B --> filtered  720M	
-#it 	dedupped 0.9B --> filtered  360M
-#Because the doc counts are only estimates, I test all now with max mem and hope for the best
-#First test was with +100G to file sizes to all --> Failed
-#Second test 454GB for all --> Failed and was able to build 181M hash tables
-#Third test 1TB for all 
-#Estimated runtime is 30h, increase upto 72h is necessary
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--test",help="whether to test",action='store_true')
@@ -33,7 +22,7 @@ parser.add_argument("--lang",type=str,help="if running single job, what lang to 
 def create_slurm_scripts(script_name,lang,log_path="/scratch/project_462000353/akselir/redpajama-v2/fuzzy_dedup_logs"
                         ,account="project_462000444"
                         ,cpus_per_task=1,time="00:05:00"
-                        ,mem_per_cpu=500,partition='small'):
+                        ,mem_per_cpu=500,partition='small', shard=0):
     """Creates a slurm script in right string format
 
     Args:
@@ -79,7 +68,7 @@ srun \
     singularity exec \
     -B "$SING_BIND" \
     "$CONTAINER" \
-    python /scratch/project_462000353/akselir/redpajama-v2/src/minhashlsh.py --cross_crawl_dedup --strict --lang {lang}
+    python /scratch/project_462000353/akselir/redpajama-v2/src/minhashlsh.py --cross_crawl_dedup --path /scratch/project_462000353/data/redpajama-v2/partially_dedupped --lang {lang}
 """ 
 
     return script_content
@@ -89,16 +78,17 @@ if __name__ == "__main__":
     args = parser.parse_args()    
     if not args.test:
         if args.all:
-            for l in ["it","fr","es","de"]:
+            for l in ["en","fr","es","de","it"]:
                 if l == 'fr':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
+                    s = create_slurm_scripts(f"{l}_small_fuzzy_dedup",lang=l,cpus_per_task=32,time='72:00:00',mem_per_cpu=31250,partition='small')
                 elif l == 'it':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
+                    s = create_slurm_scripts(f"{l}_small_fuzzy_dedup",lang=l,cpus_per_task=32,time='72:00:00',mem_per_cpu=31250,partition='small')
                 elif l=='de':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
+                    s = create_slurm_scripts(f"{l}_small_fuzzy_dedup",lang=l,cpus_per_task=32,time='72:00:00',mem_per_cpu=31250,partition='small')
                 elif l=='es':
-                    s = create_slurm_scripts(f"{l}_fuzzy_dedup",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=31250)
-
+                    s = create_slurm_scripts(f"{l}_small_fuzzy_dedup",lang=l,cpus_per_task=32,time='72:00:00',mem_per_cpu=31250,partition='small')
+                elif l=='en':
+                    s = create_slurm_scripts(f"{l}_small_fuzzy_dedup",lang=l,cpus_per_task=32,time='72:00:00',mem_per_cpu=31250,partition='small')
                 temp_file_name = f"{os.getcwd()}/slurm_job_{l}.sh"
                 with open(temp_file_name,"w") as temp_file:
                     temp_file.write(s)
@@ -108,11 +98,11 @@ if __name__ == "__main__":
                 os.remove(temp_file_name)
         else:
             l = args.lang
-            s = create_slurm_scripts(f"fuzzy_dedup_{l}",lang=l,cpus_per_task=32,time='30:00:00',mem_per_cpu=14200)
+            s = create_slurm_scripts(f"{l}_largemem_fuzzy_dedup",lang=l,cpus_per_task=128,time='24:00:00',mem_per_cpu=15625,partition='largemem')
             temp_file_name = f"{os.getcwd()}/slurm_job_{l}.sh"
             with open(temp_file_name,"w") as temp_file:
                 temp_file.write(s)
-                # Submit the SLURM job using sbatch with the temporary file
+                # Submit the SLURM job using sbatch with the temporary fil14200e
             subprocess.run(["sbatch", temp_file_name], text=True)
             time.sleep(1)
             os.remove(temp_file_name)
