@@ -1,89 +1,129 @@
 # Background
+- This repo describes deduplication [Redpajama 2](https://www.together.ai/blog/redpajama-data-v2) using [Lumi](https://www.together.ai/blog/redpajama-data-v2) supercomputer
 - Dataset comes in "raw" form meaning that user must do the quality filtering and deduplication self
-    1. Download documents, Bloom filterduplicate ids, Minhash signatures, and quality signals
-    2. Filter bloom filter duplicates
+    1. Download documents, Bloom filter (exact) duplicate ids, Minhash signatures, and quality signals
+    2. Filter exact duplicates
     3. Filter low quality documents with quality measures
     4. Fuzzy deduplication with MinhashLSH
 
 # Pipeline for full data
-- Idea is to process each crawl per language
-
+- There has been several changes during the process and this is genuine description of full process
 1. Create directory structure
-- Run `get_urls.sh` &rarr; result
-   
+- Run `get_urls.sh` &rarr; 
     ```
     ── full_data
-    ├── crawl_number
-        ├──texts
+    ├── crawl_number_1
+        - {crawl_number}-document-urls.txt    
+        - {crawl_number}-minhash-urls.txt  
+        - {crawl_number}-duplicates-urls.txt  
+        - {crawl_number}-quality_signals-urls.txt
+        ├──document
 
         ├──duplicates
 
         ├──quality_signals
+    ...
+    ├── crawl_number_n
+        -...
     ```
 2. Download and combine data
     - `download_and_combine_all_sbatch.sh`
+    1. Downloads all datatypes
+    2. Add missing ids to documents
+    3. Combine different dtype files by language
+    4. After combination, remove sharded source files 
+    - &rarr; 
+    ```
+    ── full_data
+    ├── crawl_number_1
+        - {crawl_number}-document-urls.txt    
+        ...
+        - {crawl_number}-quality_signals-urls.txt
+        ├──combined
+             -en_document.jsonl.gz
+            - en_duplicates.parquet
+            - en_minhash.parquet
+            - en_quality_signals.jsonl.gz
+            ...
+            - it_...
+    ...
+    ├── crawl_number_n
+        -...
+    ```
 3. Remove bloom filter duplicates
-
+- `exact_dedup_all_sbatch.sh`
+    - writing large parquet files was too much for [Lustre](https://docs.lumi-supercomputer.eu/storage/parallel-filesystems/lustre/) &rarr; quality signal files were not filtered
+    - after exact dedup gunzip all json files (this was done also separetely to other jsons as I realized project is running out of memory)
+    - &rarr;
+  ```
+   ── full_data
+    ├── crawl_number_1
+        - {crawl_number}-document-urls.txt    
+        ...
+        - {crawl_number}-quality_signals-urls.txt
+        ├──combined
+             - en_document.jsonl.gz
+            ...
+            - it_...
+        ├──exact_deduplicated
+            - en_document_exact_dedup.jsonl.gz
+            - en_minhash_exact_dedup.parquet
+            ...
+            - it_...
+    ...
+    ├── crawl_number_n
+        -...
+    ```
 4. Quality filter
-
+- Pre-computed metrics (number_of_words, number_of_lines, number_of_characters, language_identification, perplexity, stop_words, special_characters, flagged_words, words_per_line_mean, short_line_ratio, character_repetition10gram, character_repetition5gram, word_repetition, unigram_entropy, lines_end_in_punctuation) were used
+- Filtering was based in 4 different thresholds based in _p_-quantiles inspired by Cultura X:
+   - 0.05% of the data was used to calculate the distributions for German, French, Italian, and Spanish
+   - 0.02% of data was used to calculate the distribution for English
+   - lower _p_-th percentile was used for the metrics that favor high values (e.g number_of_words), while metrics favoring low values (e.g. flagged words) will the upper _p_-th percentile
+- Regular
+   - $p_1 = 10$
+   - $p_3 = 90$
+- Strict
+   - $p_1=20$
+   - $p_3 =80$
+- Even stricter
+   - $p_1=30$
+   - $p_3=70$
+- Strictest
+   - $p_1 = 40$
+   - $p_3 = 60$
+- Of these documents and signatures were filtered using:
+   - Regular for German, French, Italian, and Spanish
+   - Strict for English
+   - These filters were chosen based on goal of 100B tokens for each language
+- Full code for quality filtering is available [here](https://github.com/mmanteli/redpajama-v2-filter-2023/))
 5. Minhash deduplication
-    - compute clusters and filter &rarr; `minhashlsh.py`
-
-# Files
-## Dirs
-- `/scripts` &rarr; slurm scripts
-- `/src` &rarr; src
-## py-scripts
-- `add_document_ids.py` &rarr; add document ids to text-files
-- `all_downloaded.py` &rarr; check if dir contains N number of files
-- `combine_jsonl.py` &rarr; read `jsonl.gz` and combine them into `jsonl` &rarr; this module is slow, `combine_jsonl.sh` is used instead
-- `combine_parquet_files.py` &rarr; combines one crawl parquet files
-- `download_sample.py` &rarr; download sample of HF datasets
-- `file_helpers.py` &rarr; gathering, opening and sorting tools
-- `filter_bloom_duplicates.py` &rarr; filter bloom filter duplicates still TODO
-- `minhashlsh.py` &rarr; defines hash-clusters and keeps only parent of a cluster
-- `timer.py` &rarr; simple timer
-- `union_find.py` &rarr; [Union Find](https://en.wikipedia.org/wiki/Disjoint-set_data_structure) implementation
-## bash-scripts
-- `all_combined.sh`
-    - check that file number match and delete shards
-- `combine_jsonl.sh`
-    - combine jsonl files in 10 parallel processes
-- `download_and_combine_all_sbatch.sh`
-    - master script to download and process all crawls 7 jobs at a time
-- `download_crawl.sh` 
-    - loops download until success
-    - compares actual and expected file sizes to be sure for successful download
-    - works in 16 parallel processes
-- `deduplicate_sbatch.sh` &rarr; slurm script for dedup
-- `get_urls.sh` &rarr; create separate set of urls for each craw can make folder structure
+    - It took some time to realize how much memory is needed to dedup ~500M documents &rarr; ~2TB
+    - English strict filter returned about 1.8B documents &rarr; would need 7.2TB mem
+    - Other languages returned about 600M documents &rarr; would need about 2.5TB mem
+    - In theory, other languages wouldn't have to been downsampled but it was done because of the time constraint
+        - LUMI has 8 4TB largemem node
+    - Due to time constraint all languages were downsampled to 500M docs
+        - `downsample_parquet.py`
+    - After downsampling the ~1TB samples were shared to 127 shard to get better parallezation
+        - `shard_parquet.py`   
+    - Next, data deduplicated in 200GB shards to fit the data into smaller slurm partition
+        - `minhashlsh_partial.py`
+    - Next, 200GB shards were combined and shared again into 127 shard and _finally_ fed into full cross-crawl fuzzy dedup
+        - `minhashlsh.py`
+        - jobs were launched using `fuzzy_dedup_job_constructor.py`
+    - Finally the the duplicates were filted with `filter_fuzzy_duplicates.py`
+    
 ## Singularity
 - Dedup/combination can be run with `/scratch/project_462000353/akselir/containers/preprocessing_container.sif`
 # Resource requirements
-## Computing requirements
-- Most of data is English &rarr; 14.5B/20.8B docs
-- Resources for other languages is calculated just as 30% of resources needed for English
-- Minhash calculations based on running with 32 cores and 256G mem while processing 1% of full crawl
-    - Processing 500/10000 shards &rarr; 3 hours 
-    - Union find has time complexity of inverse Ackermann &rarr;  makes disjoint-set operations practically amortized constant time &rarr; 60 hours
-    -  `(256GB/2GB) CPU cores x 60 hours = 7680 CPU-core-hours`
-- Rough estimate _(read guess)_ for other processing steps they take 50% of Minhash resources
-```
-| Task        | CPU-core-h /crawl   | Total resources need|
-| ----------- | --------------------|-------------------- |
-| MinhashLSH  | 11520               | 967680              |
-| Other processing|-                | 483840              |
-| ----------------------------------|-------------------- |
-| Total                             | 1451520 / ~6500 eur |
-```
 ## Disk and inode requirements
-- Whole data about 250TB, 16.8M inodes
+- Whole data about 250TB in compressed format, 16.8M inodes
 - 500TB disk and 50M inodes should be enough to process everything at same time
-- We got only 5M inodes, so data needed to be combined before futher processing 
+- We got only 5M inodes, so data needed to be combined before any further processing and later compressed again
 
-# Reference
-- `union_find.py` and `timer.py` unmodified from `text-dedup`
-- `minhashlsh.py` is modified version of `text_dedup/minhash.py`
+# References
+
  ```
     @software{chenghao_mou_2023_8364980,
     author       = {Chenghao Mou and
@@ -98,4 +138,6 @@
     doi          = {10.5281/zenodo.8364980},
     url          = {https://doi.org/10.5281/zenodo.8364980}
     }
+
+    @article{Nguyen_Van Nguyen_Lai_Man_Ngo_Dernoncourt_Rossi_Nguyen_2023, title={CulturaX: A Cleaned, Enormous, and Multilingual Dataset for Large Language Models in 167 Languages}, DOI={10.48550/arxiv.2309.09400}, journal={arXiv}, author={Nguyen, Thuat and Van Nguyen, Chien and Lai, Viet Dac and Man, Hieu and Ngo, Nghia Trung and Dernoncourt, Franck and Rossi, Ryan A. and Nguyen, Thien Huu}, year={2023} 
 ```
