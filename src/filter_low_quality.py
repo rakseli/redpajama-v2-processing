@@ -42,8 +42,7 @@ if __name__ == "__main__":
         os.mkdir(full_output)
     #leave on CPU for writing the files
     num_cpus=len(os.sched_getaffinity(0))-1
-    #for lang in ["en","fr","it","de","es"]:
-    for lang in ["fr","de","es"]:
+    for lang in ["en","fr","it","de","es"]:
         if args.strict:
             id_file = f"{args.path}/{args.crawl}/quality_filtered_ids/{lang}_quality_filtered_ids_strict.jsonl.gz"
         elif args.extreme:
