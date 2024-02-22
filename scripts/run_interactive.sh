@@ -2,4 +2,4 @@
 
 run_time=$1
 
-srun --account=project_462000353 --partition=small --time="$run_time" --nodes=1 --pty bash
+srun --account=project_462000444 --partition=small --time=02:00:00 --mem-per-cpu=2000 --cpus-per-task=2 --nodes=1 --pty bash
