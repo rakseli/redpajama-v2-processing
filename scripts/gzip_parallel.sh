@@ -4,7 +4,7 @@ start_time=$(date +%s)
 
 jsonl_files=$(find "/scratch/project_462000353/data/redpajama-v2/full_data" -type f -name "*$d_type.jsonl")
 
-echo "Starting to combine jsonls"
+echo "Starting to compress jsonls"
 echo "Files:"
 for file in $jsonl_files; do
     echo "$file"
