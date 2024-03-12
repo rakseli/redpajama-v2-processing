@@ -100,8 +100,8 @@
 5. Minhash deduplication
     - English strict filter returned about 1.8B signatures &rarr; would need 7.2TB mem
     - Other languages returned about 600M signatures &rarr; would need about 2.5TB mem
-    - LUMI has 8 4TB largemem nodes, so almost all signatures would have fit into memory &rarr; however, largemem nodes have 24 24-hour time limit, so jobs would not have finished
-    - All languages EXCEPT Italian were downsampled to about 500M signatures &rarr; this was chosen as it produces about 100B tokens per language
+    - LUMI has 8 4TB largemem nodes, so almost all signatures would have fit into memory &rarr; however, largemem nodes have 24-hour time limit, so jobs would not have finished
+    - All languages EXCEPT Italian were downsampled to about 500M signatures &rarr; this number was chosen as it produces about 100B tokens per language
         - `downsample_parquet.py`
     - Based on partial corpus deduplication tests, the initial estimate of computation time was about 30h, and following was done:
         - After downsampling, signatures were shared to 127 shards to get better parallelization
@@ -116,14 +116,15 @@
         - 3 rounds of $\frac{1}{8},\frac{1}{4},\frac{1}{2}$-corpus dedups
             - `shuffle_dataset.py` to make dedups more effective
             - after shuffling, the file was sharded
-        - the effort reduced the corpus size by about ~50%
+        - the effort reduced the corpus size by about ~40%
         - this allowed full deduplication of the target
         -  `minhashlsh_partial.py`
         -  `minhashlsh_partial_round_2.py` &rarr; same module but done because of bad design of first
         - Jobs were launched using `fuzzy_dedup_job_constructor_partial.py`
-        - Used 1-6 hours per round with 3-16 CPUs
+        - Used 0.2-6 hours per shard with 3-16 CPUs
     - Finally, the duplicates were filtered with `filter_fuzzy_duplicates.py`
         - Used ~30 hours with 32 CPUs
+        - Reduction from initial size was about 50%
 ## Singularity
 - Dedup/combination can be run with `/scratch/project_462000353/akselir/containers/preprocessing_container.sif`
 # Resource requirements
