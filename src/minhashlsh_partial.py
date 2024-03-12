@@ -4,12 +4,11 @@ import numpy as np
 import argparse
 import gc
 import multiprocessing as mp
-import torch
-import json
-import time
+import logging
 import pyarrow.parquet as pq
 import pyarrow as pa
 from union_find import UnionFind
+from datetime import datetime
 from datasets import load_dataset
 from file_helpers import gather_files, format_duration
 from timer import Timer
@@ -25,7 +24,7 @@ datasets.logging.set_verbosity_debug()
 datasets.disable_caching()
 
 parser = argparse.ArgumentParser()
-
+parser.add_argument("--logging_path", type=str, help="single file or dir", default='/scratch/project_462000353/akselir/redpajama-v2/fuzzy_dedup_logs')
 parser.add_argument("--path", type=str, help="single file or dir", default='/scratch/project_462000353/data/redpajama-v2/full_data')
 parser.add_argument("--cache_dir", type=str, help="`cache_dir` in load_dataset", default="/scratch/project_462000353/data/redpajama-v2/datasets_cache")
 parser.add_argument("--batch_size",type=int,help="batch size to use for dataset iteration",default=10000)
@@ -34,7 +33,7 @@ parser.add_argument("--downsampled",help="whether to downsampled files",action='
 parser.add_argument("--temp_dir",type=str,help="where to write temp files",default="/scratch/project_462000353/data/redpajama-v2/tmp")
 parser.add_argument("--lang",type=str,help="what language to do cross crawl dedup",default="en")
 parser.add_argument("--shard",type=int,help="shard number",default=0)
-
+parser.add_argument("--iteration",type=int,help="iteration of dedup",default=1)
 
 def naive_data_collator(batch):
     """Does nothing, only for dataloader to batch samples 
@@ -47,7 +46,7 @@ def naive_data_collator(batch):
     return batch
 
 
-def load_data(path,signature,cache_dir):
+def load_data(path,signature,cache_dir,iteration=0):
     """Load minhash data
 
     Args:
@@ -67,10 +66,14 @@ def load_data(path,signature,cache_dir):
             data_files = gather_files(path)
         else:
             data_files = path
-    #use split parameter to obtain Dataset-object
-    data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=cache_dir,streaming=True)
-    data = data.rename_column(signature, "signature")
-    data = data.select_columns(['signature','id','id_int'])
+    if iteration==0:
+        #use split parameter to obtain Dataset-object
+        data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=cache_dir,streaming=True)
+        data = data.rename_column(signature, "signature")
+        data = data.select_columns(['signature','id','id_int'])
+    else:
+        data = load_dataset("parquet",data_files=data_files,split='train',cache_dir=cache_dir,streaming=True)
+        return data
     return data
 
 def cluster_hashes(data,batch_size,num_workers,signature):
@@ -92,9 +95,9 @@ def cluster_hashes(data,batch_size,num_workers,signature):
     hash_tables: list[dict[int, set]] = [defaultdict(set) for _ in range(n_bands[signature])]
     dataloader = DataLoader(data, batch_size=batch_size,num_workers=num_workers,collate_fn=naive_data_collator)
     n_samples = 0
-    print("Starting to find cluster ids for documents")
-    for i,batch in enumerate(dataloader):
-        print(f"Adding batch {i}")
+    logging.info("Starting to find cluster ids for documents")
+    for j,batch in enumerate(dataloader):
+        logging.debug(f"Adding batch {j}")
         n_samples+=len(batch)
         for item in batch:
             #appears that some ids are missing signature?
@@ -103,10 +106,11 @@ def cluster_hashes(data,batch_size,num_workers,signature):
             # find the cluster id of every document
             for i, h in enumerate(item["signature"]):
                 hash_tables[i][h].add(item["id_int"])
-    print(f"Total n docs added into hash tables: {n_samples}")
-    print(f"Starting to cluster the hashes...")       
+    logging.info(f"Total n docs added into hash tables: {n_samples}")
+    logging.info(f"Starting to cluster the hashes...")      
     # compute clursters with UnionFind
-    for table in hash_tables:
+    for k,table in enumerate(hash_tables):
+        logging.debug(f"Computing cluster with hastable {k+1}/{len(hash_tables)}")
         # cluster: Set[int]
         for cluster in table.values():
             if len(cluster) <= 1:
@@ -114,6 +118,8 @@ def cluster_hashes(data,batch_size,num_workers,signature):
             idx = min(cluster)
             for x in cluster:
                 uf.union(x, idx)
+        #hack: trying release some space
+        hash_tables[k]=None
     return uf,n_samples
 
 def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
@@ -158,35 +164,57 @@ def deduplicate(uf_object,ds,batch_size,num_proc,output_path):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    now = datetime.now()
+    now_str = now.strftime('%Y_%m_%d_%H_%M_%S')
+    logging.basicConfig(filename=f"{args.logging_path}/partial_{args.lang}_fuzzy_dedup_debug_log_{now_str}_iteration_{args.iteration}_{args.shard}.log",format='[ %(asctime)s ]: %(message)s', level=logging.DEBUG)
     num_cpus=len(os.sched_getaffinity(0))-1
-    print(f"N of CPUs used for data loading and processing: {num_cpus}")
+    logging.info(f"N of CPUs used for data loading and processing: {num_cpus}")
     #dedup corpus per language
     t = Timer()
     if not os.path.exists(args.temp_dir):
         os.mkdir(args.temp_dir)
     lang = args.lang
-    print(f"Starting to dedup lang {lang}")
-    if args.downsampled:
-        all_downsampled = gather_files("/scratch/project_462000353/data/redpajama-v2/downsampled_data")
-        signature_files = [x for x in all_downsampled if f"{lang}_minhash_downsampled_shard_" in x]
-    else:
-        all_files = gather_files(args.path)
-        signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered.parquet" in x]
-    #sort for to ensure deterministic shards
-    signature_files.sort()
-    data_shards = np.array_split(signature_files, 8)
-    shard = list(data_shards[args.shard])
-    output_file = f"{args.temp_dir}/{lang}_minhash_partial_dedup_shard_{args.shard}.parquet"
-    data = load_data(shard,args.signature,args.cache_dir)
+    logging.info(f"Starting to dedup lang {lang},shard {args.shard}, iteration {args.iteration}")
+    if args.iteration == 0:
+        if args.downsampled:
+            all_downsampled = gather_files("/scratch/project_462000353/data/redpajama-v2/downsampled_data")
+            signature_files = [x for x in all_downsampled if f"{lang}_minhash_downsampled_shard_" in x]
+        else:
+            all_files = gather_files(args.path)
+            signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered.parquet" in x]
+        #sort for to ensure deterministic shards
+        signature_files.sort()
+        data_shards = np.array_split(signature_files, 8)
+        shard = list(data_shards[args.shard])
+        output_file = f"{args.temp_dir}/{lang}_minhash_partial_dedup_shard_{args.shard}.parquet"
+        data = load_data(shard,args.signature,args.cache_dir,args.iteration)
+    if args.iteration == 1:
+        all_files = gather_files(args.temp_dir)
+        signature_files = [x for x in all_files if f"{lang}_minhash_partial_shuffled_shard_" in x]
+        #sort for to ensure deterministic shards
+        signature_files.sort()
+        data_shards = np.array_split(signature_files, 4)
+        shard = list(data_shards[args.shard])
+        output_file = f"{args.temp_dir}/{lang}_minhash_partial_dedup_iteration_{args.iteration}_shard_{args.shard}.parquet"
+        data = load_data(shard,args.signature,args.cache_dir,args.iteration)
+    elif args.iteration > 1:
+        all_files = gather_files(args.temp_dir)
+        signature_files = [x for x in all_files if f"{lang}_minhash_partial_dedup_iteration_{args.iteration-1}" in x]
+        #sort for to ensure deterministic shards
+        signature_files.sort()
+        data_shards = np.array_split(signature_files, 2)
+        shard = list(data_shards[args.shard])
+        output_file = f"{args.temp_dir}/{lang}_minhash_partial_dedup_iteration_{args.iteration}_shard_{args.shard}.parquet"
+        data = load_data(shard,args.signature,args.cache_dir,args.iteration)
     with t(f"Cluster {args.shard}"):
         hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
-    print(f"Time clustering shard {args.shard}: {format_duration(int(t.elapsed_times.get(f'Cluster {args.shard}', 0)))}")
+    logging.info(f"Time clustering shard {args.shard}: {format_duration(int(t.elapsed_times.get(f'Cluster {args.shard}', 0)))}")
     with t(f"Dedup {args.shard}"):
         n_samples_after_dedup=deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=output_file)
-    print(f"Time dedup shard {args.shard}: {format_duration(int(t.elapsed_times.get(f'Dedup {args.shard}', 0)))}")            
-    print(f"Len before dedup: {n_samples}")
-    print(f"Len after dedup: {n_samples_after_dedup}")
-    print(f"Reduction: {100-(n_samples_after_dedup/n_samples)*100:.2f}%")
+    logging.info(f"Time dedup shard {args.shard}: {format_duration(int(t.elapsed_times.get(f'Dedup {args.shard}', 0)))}")            
+    logging.info(f"Len before dedup: {n_samples}")
+    logging.info(f"Len after dedup: {n_samples_after_dedup}")
+    logging.info(f"Reduction: {100-(n_samples_after_dedup/n_samples)*100:.2f}%")
     
         
 
