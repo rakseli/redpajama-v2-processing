@@ -98,22 +98,32 @@
    - These filters were chosen based on goal of 100B tokens for each language
 - Full code for quality filtering is available [here](https://github.com/mmanteli/redpajama-v2-filter-2023/))
 5. Minhash deduplication
-    - It took some time to realize how much memory is needed to dedup ~500M documents &rarr; ~2TB
-    - English strict filter returned about 1.8B documents &rarr; would need 7.2TB mem
-    - Other languages returned about 600M documents &rarr; would need about 2.5TB mem
-    - In theory, other languages wouldn't have to been downsampled but it was done because of the time constraint
-        - LUMI has 8 4TB largemem node
-    - Due to time constraint all languages were downsampled to 500M docs
+    - English strict filter returned about 1.8B signatures &rarr; would need 7.2TB mem
+    - Other languages returned about 600M signatures &rarr; would need about 2.5TB mem
+    - LUMI has 8 4TB largemem nodes, so almost all signatures would have fit into memory &rarr; however largemem nodes have 24h time limit so jobs would have not finished
+    - All languages EXCEPT Italian were downsampled to about 500M signatures &rarr; this was chosen as it produces about 100B tokens per language
         - `downsample_parquet.py`
-    - After downsampling the ~1TB samples were shared to 127 shard to get better parallezation
-        - `shard_parquet.py`   
-    - Next, data deduplicated in 200GB shards to fit the data into smaller slurm partition
-        - `minhashlsh_partial.py`
-    - Next, 200GB shards were combined and shared again into 127 shard and _finally_ fed into full cross-crawl fuzzy dedup
-        - `minhashlsh.py`
-        - jobs were launched using `fuzzy_dedup_job_constructor.py`
+    - Based on partial corpus deduplication tests initial estimate of computation time was about 30h and following was done:
+        - After downsampling, signatures were shared to 127 shards to get better parallezation
+            - `shard_parquet.py`   
+        - Next, data deduplicated in 200GB shards to fit the data into smaller slurm partition
+            - `minhashlsh_partial.py`
+        - Next, 200GB shards were combined and shared again into 127 shard and fed into full cross-crawl fuzzy dedup
+            - `minhashlsh.py`
+        - Jobs were launched using `fuzzy_dedup_job_constructor.py`
+    - The partial dedup effort was not enough &rarr; there were still too many signatures and duplicates to complete the jobs in Lumi small partition time limit
+    - Next all languages were iteratively dedupped multiple times to reduce the number of duplicates
+        - 3 rounds of $\frac{1}{8},\frac{1}{4},\frac{1}{2}$-corpus dedups
+            - `shuffle_dataset.py` to make dedups more effective
+            - after shuffling, the file was sharded
+        - the effort reduced the corpus size about ~50%
+        - this allowed full deduplication of the target
+        -  `minhashlsh_partial.py`
+        -  `minhashlsh_partial_round_2.py` &rarr; same module but done because of bad design of first
+        - Jobs were launched using `fuzzy_dedup_job_constructor_partial.py`
+        - Used 1-6 hours per round with 3-16 CPUs
     - Finally the the duplicates were filted with `filter_fuzzy_duplicates.py`
-    
+        - Used ~30 hours with 32 CPUs
 ## Singularity
 - Dedup/combination can be run with `/scratch/project_462000353/akselir/containers/preprocessing_container.sif`
 # Resource requirements
@@ -121,6 +131,9 @@
 - Whole data about 250TB in compressed format, 16.8M inodes
 - 500TB disk and 50M inodes should be enough to process everything at same time
 - We got only 5M inodes, so data needed to be combined before any further processing and later compressed again
+- While holding intermediate files total disk consumed 369TB
+## Computing
+- Total (including debugging and failed runs), about 250K/CPUh was used for the effort
 
 # References
 
