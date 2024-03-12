@@ -20,9 +20,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--path", type=str, help="path to parent dir of files",default="/scratch/project_462000353/data/redpajama-v2/full_data")
 parser.add_argument("--cache_dir", type=str, help="path HF cache dir",default="/scratch/project_462000353/data/redpajama-v2/datasets_cache")
 parser.add_argument("--crawl",type=str,help="crawl id", default='2014-15')
+parser.add_argument("--lang",type=str,help="lang", default='it')
+parser.add_argument("--dtype",type=str,help="lang", default='document')
 parser.add_argument("--strict",action='store_true',help="wheter to use strict or loose ids")
 parser.add_argument("--extreme",action='store_true',help="wheter to use extreme filtering")
 parser.add_argument("--output_dir",type=str,help="where to write dataset",default="quality_filtered")
+parser.add_argument("--all",action='store_true',help="whether to filter all")
 parser.add_argument("--test",action='store_true')
 
 
@@ -42,7 +45,12 @@ if __name__ == "__main__":
         os.mkdir(full_output)
     #leave on CPU for writing the files
     num_cpus=len(os.sched_getaffinity(0))-1
-    for lang in ["en","fr","it","de","es"]:
+    if args.all:
+        lang_iterable = ["en","fr","it","de","es"]
+    else:
+        lang_iterable = [args.lang]
+        dtype_iterable = [args.dtype]
+    for lang in lang_iterable:
         if args.strict:
             id_file = f"{args.path}/{args.crawl}/quality_filtered_ids/{lang}_quality_filtered_ids_strict.jsonl.gz"
         elif args.extreme:
@@ -59,7 +67,7 @@ if __name__ == "__main__":
         print(f"Time creating id set: {format_duration(int(t.elapsed_times.get(f'{lang} id set', 0)))}")
         del ids_to_keep
         del dataloader_ids
-        for d_type in ['document','minhash']:
+        for d_type in dtype_iterable:
             if d_type == 'minhash':
                 input_file = f"{args.path}/{args.crawl}/exact_deduplicated/{lang}_{d_type}_exact_dedup.parquet"
                 if args.strict:
@@ -101,10 +109,6 @@ if __name__ == "__main__":
                                 jsonl_file.write(json_line + '\n')
             
             print(f"{lang} {d_type} quality filter: {format_duration(int(t.elapsed_times.get(f'{lang} {d_type} quality filter', 0)))}")
-            #original size of file can't obtained from gzip/pigz 
-            # The gzip format represents the input size modulo 2^32, 
-            # so the --list option reports incorrect uncompressed sizes and compression ratios for uncompressed files 4 GB and larger
-            # thus reduction is calculated from gzip files in separate script
             if args.test:
                 break
         gc.enable()
