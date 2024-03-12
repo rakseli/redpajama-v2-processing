@@ -25,4 +25,4 @@ srun \
     singularity exec \
     -B "$SING_BIND" \
     "$CONTAINER" \
-    python /scratch/project_462000353/akselir/redpajama-v2/src/filter_low_quality_italy.py --crawl ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} 
+    python /scratch/project_462000353/akselir/redpajama-v2/src/filter_low_quality.py --crawl ${uniq_crawls[${SLURM_ARRAY_TASK_ID}]} 
