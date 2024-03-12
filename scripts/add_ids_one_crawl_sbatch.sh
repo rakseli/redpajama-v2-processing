@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=add_ids_32_cpus
-#SBATCH --output=../logs/add_ids_32_cpus_%j.output # Name of stdout output file
-#SBATCH --error=../logs/add_ids_32_cpus_%j.erros  # Name of stderr error file
+#SBATCH --output=../logs/add_ids_32_cpus_%j.output 
+#SBATCH --error=../logs/add_ids_32_cpus_%j.error  
 #SBATCH --account=project_462000353
 #SBATCH --time=01:20:00
 #SBATCH --ntasks=1

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=fr_downsample_parquet
-#SBATCH --output=../logs/fr_downsample_parquet_%j.output # Name of stdout output file
-#SBATCH --error=../logs/fr_downsample_parquet_%j.erros  # Name of stderr error file
+#SBATCH --output=../logs/fr_downsample_parquet_%j.output
+#SBATCH --error=../logs/fr_downsample_parquet_%j.error
 #SBATCH --account=project_462000444
 #SBATCH --time=04:00:00
 #SBATCH --ntasks=1

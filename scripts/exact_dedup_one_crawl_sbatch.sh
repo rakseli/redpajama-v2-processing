@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=exact_dedup_crawl_2017-09
-#SBATCH --output=../logs/exact_dedup_crawl_2017-09_%j.output # Name of stdout output file
-#SBATCH --error=../logs/exact_dedup_crawl_2017-09_%j.error  # Name of stderr error file
+#SBATCH --output=../logs/exact_dedup_crawl_2017-09_%j.output
+#SBATCH --error=../logs/exact_dedup_crawl_2017-09_%j.error  
 #SBATCH --account=project_462000353
 #SBATCH --time=45:00:00 #
 #SBATCH --ntasks=1

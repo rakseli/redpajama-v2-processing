@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=download_one_crawl_data
-#SBATCH --output=../logs/download_one_crawl_dtype_%j.output # Name of stdout output file
-#SBATCH --error=../logs/download_one_crawl_dtype_%j.erros  # Name of stderr error file
+#SBATCH --output=../logs/download_one_crawl_dtype_%j.output
+#SBATCH --error=../logs/download_one_crawl_dtype_%j.error
 #SBATCH --account=project_462000353
 #SBATCH --time=18:00:00
 #SBATCH --ntasks=1

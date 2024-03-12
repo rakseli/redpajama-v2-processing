@@ -1,15 +1,15 @@
 #!/bin/bash
 #SBATCH --job-name=combine_jsons_and_parquet
-#SBATCH --output=../logs/combine_jsons_and_parquet_%A_%a.output # Name of stdout output file
-#SBATCH --error=../logs/combine_jsons_and_parquet_%A_%a.erros  # Name of stderr error file
+#SBATCH --output=../logs/combine_jsons_and_parquet_%A_%a.output 
+#SBATCH --error=../logs/combine_jsons_and_parquet_%A_%a.error  
 #SBATCH --account=project_462000353
-#SBATCH --time=12:00:00                           #
-#SBATCH --ntasks=1                                # Number of tasks                     
-#SBATCH --ntasks-per-node=1                       # Number of tasks per node
-#SBATCH --cpus-per-task=10                        # N cpus
-#SBATCH --mem-per-cpu=1500                        # 1200 failed test 1900
+#SBATCH --time=12:00:00                           
+#SBATCH --ntasks=1                                                    
+#SBATCH --ntasks-per-node=1                       
+#SBATCH --cpus-per-task=10                        
+#SBATCH --mem-per-cpu=1500                        
 #SBATCH --partition=small
-#SBATCH --array=0-8                            #Process 8 crawls at a time use 0-83%8  
+#SBATCH --array=0-8                              
 module purge
 module load LUMI/22.12 
 module load parallel/20230322

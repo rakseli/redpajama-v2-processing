@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=shuffle_parquet
-#SBATCH --output=../logs/shuffle_parquet_%j.output # Name of stdout output file
-#SBATCH --error=../logs/shuffle_parquet_%j.error  # Name of stderr error file
+#SBATCH --output=../logs/shuffle_parquet_%j.output 
+#SBATCH --error=../logs/shuffle_parquet_%j.error  
 #SBATCH --account=project_462000353
 #SBATCH --time=20:00:00 #
 #SBATCH --ntasks=1

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=combine_shards
-#SBATCH --output=../logs/combine_shards_%j.out # Name of stdout output file
-#SBATCH --error=../logs/combine_shards_%j.err  # Name of stderr error file
+#SBATCH --output=../logs/combine_shards_%j.out
+#SBATCH --error=../logs/combine_shards_%j.err  
 #SBATCH --account=project_462000444
 #SBATCH --time=02:00:00
 #SBATCH --ntasks=1

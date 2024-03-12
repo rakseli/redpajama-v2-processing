@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=filter_fuzzy
-#SBATCH --output=../logs/filter_fuzzy_%j.output # Name of stdout output file
-#SBATCH --error=../logs/filter_fuzzy_%j.error  # Name of stderr error file
+#SBATCH --output=../logs/filter_fuzzy_%j.output 
+#SBATCH --error=../logs/filter_fuzzy_%j.error
 #SBATCH --account=project_462000444
 #SBATCH --time=12:00:00
 #SBATCH --ntasks=1

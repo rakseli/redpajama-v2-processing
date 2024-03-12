@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=it_filter_low_quality_array
-#SBATCH --output=../logs/it_filter_low_quality_array_%A_%a.output # Name of stdout output file
-#SBATCH --error=../logs/it_filter_low_quality_array_%A_%a.error  # Name of stderr error file
+#SBATCH --job-name=filter_low_quality_array
+#SBATCH --output=../logs/filter_low_quality_array_%A_%a.output 
+#SBATCH --error=../logs/filter_low_quality_array_%A_%a.error 
 #SBATCH --account=project_462000444
 #SBATCH --time=02:00:00 # 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
-#SBATCH --mem-per-cpu=4000 #should be enough for all languages
+#SBATCH --mem-per-cpu=4000 
 #SBATCH --partition=small
 #SBATCH --array=0-83
 module purge

@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=filter_low_quality_crawl_2022-40
-#SBATCH --output=../logs/filter_low_quality_crawl_2022-40_%j.output # Name of stdout output file
-#SBATCH --error=../logs/filter_low_quality_crawl_2022-40_%j.error  # Name of stderr error file
+#SBATCH --output=../logs/filter_low_quality_crawl_2022-40_%j.output
+#SBATCH --error=../logs/filter_low_quality_crawl_2022-40_%j.error  
 #SBATCH --account=project_462000444
 #SBATCH --time=02:00:00 #
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
-#SBATCH --mem-per-cpu=3000 #let's use the 6x size of the file and profile the usage later
+#SBATCH --mem-per-cpu=3000
 #SBATCH --partition=small
 
 module purge

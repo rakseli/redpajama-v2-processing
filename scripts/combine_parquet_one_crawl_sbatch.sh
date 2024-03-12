@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=combine_parquet
-#SBATCH --output=../logs/combine_parquet_%j.output # Name of stdout output file
-#SBATCH --error=../logs/combine_parquet_%j.erros  # Name of stderr error file
+#SBATCH --output=../logs/combine_parquet_%j.output
+#SBATCH --error=../logs/combine_parquet_%j.error  
 #SBATCH --account=project_462000353
 #SBATCH --time=08:00:00
 #SBATCH --ntasks=1

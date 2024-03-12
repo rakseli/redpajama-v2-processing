@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=exact_dedup_all
-#SBATCH --output=../logs/exact_dedup_array_%A_%a.output # Name of stdout output file
-#SBATCH --error=../logs/exact_dedup_array_%A_%a.erros  # Name of stderr error file
+#SBATCH --output=../logs/exact_dedup_array_%A_%a.output 
+#SBATCH --error=../logs/exact_dedup_array_%A_%a.error  
 #SBATCH --account=project_462000353
-#SBATCH --time=45:00:00 #Write + dedup + compress estimate for average crawl is 21h, for max size crawl that is 50% larger, max time about 42h, 45h just to play safe
+#SBATCH --time=45:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
-#SBATCH --mem-per-cpu=4800 #According to tests 48G mem should be enough to hold the id set
+#SBATCH --mem-per-cpu=4800
 #SBATCH --partition=small
 #SBATCH --array=1-83
 module purge
