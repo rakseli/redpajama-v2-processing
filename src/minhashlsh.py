@@ -4,9 +4,8 @@ import numpy as np
 import argparse
 import gc
 import multiprocessing as mp
-import torch
 import json
-import time
+import logging
 from datetime import datetime
 from union_find import UnionFind
 from datasets import load_dataset
@@ -23,8 +22,10 @@ mp.set_start_method("fork", force=True)
 datasets.logging.set_verbosity_debug()
 datasets.disable_caching()
 
+
 parser = argparse.ArgumentParser()
 
+parser.add_argument("--logging_path", type=str, help="single file or dir", default='/scratch/project_462000353/akselir/redpajama-v2/fuzzy_dedup_logs')
 parser.add_argument("--path", type=str, help="single file or dir", default='/scratch/project_462000353/data/redpajama-v2/full_data')
 parser.add_argument("--cache_dir", type=str, help="`cache_dir` in load_dataset", default="/scratch/project_462000353/data/redpajama-v2/datasets_cache")
 parser.add_argument("--crawl",type=str,help="crawl id", default='2014-15')
@@ -38,6 +39,9 @@ parser.add_argument("--downsampled",help="whether to downsampled files",action='
 parser.add_argument("--output_dir",type=str,help="where to write deduplicated dataset",default="fuzzy_dedup_ids")
 parser.add_argument("--cross_crawl_dedup",help="whether to do cross crawl dedup",action='store_true')
 parser.add_argument("--lang",type=str,help="what language to do cross crawl dedup",default="en")
+parser.add_argument("--n_files",type=int,help="n shards used in dedup",default=100)
+parser.add_argument("--lower_target",help="wheter to do 300B dedup",action='store_true')
+parser.add_argument("--input_file",type=str,help="input file when lower target is used",default="minhash_partial_shuffled_four_iterations_shard_")
 
 
 def naive_data_collator(batch):
@@ -99,10 +103,9 @@ def cluster_hashes(data,batch_size,num_workers,signature,use_dataloader=True):
     hash_tables: list[dict[int, set]] = [defaultdict(set) for _ in range(n_bands[signature])]
     dataloader = DataLoader(data, batch_size=batch_size,num_workers=num_workers,collate_fn=naive_data_collator)
     n_samples = 0
-    print("Starting to find cluster ids for documents")
+    logging.info("Starting to find cluster ids for documents")
     if use_dataloader:
-        for i,batch in enumerate(dataloader):
-            print(f"Adding batch {i}")
+        for j,batch in enumerate(dataloader):
             n_samples+=len(batch)
             for item in batch:
                 #appears that some ids are missing signature?
@@ -122,17 +125,25 @@ def cluster_hashes(data,batch_size,num_workers,signature,use_dataloader=True):
             for i, h in enumerate(item["signature"]):
                 hash_tables[i][h].add(item["id_int"])
         
-    print(f"Total n docs added into hash tables: {n_samples}")
-    print(f"Starting to cluster the hashes...")       
+    logging.info(f"Total n docs added into hash tables: {n_samples}")
+    logging.info(f"Starting to cluster the hashes...")       
     # compute clursters with UnionFind
-    for table in hash_tables:
+    for k,table in enumerate(hash_tables):
+        logging.debug(f"Computing clusters with hastable {k+1}/{len(hash_tables)}")
         # cluster: Set[int]
-        for cluster in table.values():
+        for h,cluster in enumerate(table.values()):
+            logging.debug(f"Processing cluster {h+1}/{len(table.values())}")
+            if (h+1)==len(table.values()):
+                logging.debug(f"Last item of table has been achieved")
             if len(cluster) <= 1:
                 continue
             idx = min(cluster)
-            for x in cluster:
+            for l,x in enumerate(cluster):
                 uf.union(x, idx)
+        logging.debug(f"Releasing memory by setting hashtable {k+1}/{len(hash_tables)} to None")
+        #hack: trying release some space
+        hash_tables[k]=None
+    logging.debug(f"Clustering done")
     return uf,n_samples
 
 def deduplicate(uf_object,ds,batch_size,num_proc,output_path,use_dataloader=True):
@@ -183,8 +194,12 @@ def deduplicate(uf_object,ds,batch_size,num_proc,output_path,use_dataloader=True
         
 if __name__ == "__main__":
     args = parser.parse_args()
+    now = datetime.now()
+    now_str = now.strftime('%Y_%m_%d_%H_%M_%S')
+    logging.basicConfig(filename=f"{args.logging_path}/{args.lang}_fuzzy_dedup_debug_log_{now_str}.log",format='[ %(asctime)s ]: %(message)s', level=logging.DEBUG)
+    logging.info('Starting the dedup')
     num_cpus=len(os.sched_getaffinity(0))-1
-    print(f"N of CPUs used for data loading and processing: {num_cpus}")
+    logging.info(f"N of CPUs used for data loading and processing: {num_cpus}")
     if not args.cross_crawl_dedup and not args.test:
         #dedup crawl per language
         t = Timer()
@@ -206,9 +221,7 @@ if __name__ == "__main__":
             print(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
             with t(f"Dedup {lang}"):
                 n_samples_after_dedup=deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=output_file)
-            print(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")
-
-            
+            print(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")            
             print(f"Len before dedup: {n_samples}")
             print(f"Len after dedup: {n_samples_after_dedup}")
             del hash_clusters
@@ -219,44 +232,50 @@ if __name__ == "__main__":
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
         lang = args.lang
-        print(f"Starting to dedup lang {lang}")
+        logging.info(f"Starting to dedup lang {lang}")
+        logging.info(f"Source files dir  {args.path}")
         all_files = gather_files(args.path)
         if args.strict:
             signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered_strict.parquet" in x]
             output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_strict.jsonl"
-            print("Using strictly filtered files in dedup")
+            logging.info("Using strictly filtered files in dedup")
         elif args.extreme:
             signature_files = [x for x in all_files if f"{lang}_minhash_quality_filtered_strictest.parquet" in x]
             output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_strictest.jsonl"
-            print("Using extreme strict filtered files in dedup")
+            logging.info("Using extreme strict filtered files in dedup")
         else:
             if args.downsampled:
                 all_downsampled = gather_files("/scratch/project_462000353/data/redpajama-v2/downsampled_data")
                 signature_files = [x for x in all_downsampled if f"{lang}_minhash_downsampled_shard_" in x]
                 output_file = f"{out_dir}/{lang}_{args.signature}_downsampled_cross_crawl_fuzzy_dedup_ids.jsonl"
-                print("Using downsampled filtered files in dedup")
+                logging.info("Using downsampled filtered files in dedup")
             else:
-                signature_files = [x for x in all_files if f"{lang}_minhash_partial_shard_" in x]
+                signature_files = [x for x in all_files if f"{lang}_{args.input_file}" in x]
                 output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids.jsonl"
+                if args.lower_target:
+                    rng = np.random.default_rng(seed=66)
+                    signature_files = rng.choice(signature_files,args.n_files,replace=False)
+                    signature_files = list(signature_files)
+                    logging.info(f"Not all available data is used in dedup, only {args.n_files} shards are used.")
+                    output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_lower_target.jsonl"
                 if os.path.exists(output_file):
-                    output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_2.jsonl"
-                print("Using partially dedupped filtered files in dedup")
-        if args.test_cross_crawl:
-            signature_files = signature_files[:3]
+                    output_file = f"{out_dir}/{lang}_{args.signature}_cross_crawl_fuzzy_dedup_ids_{now_str}.jsonl"
+                
         if "partially_dedupped" in args.path:
             data = load_data(signature_files,args.signature,args.cache_dir,shard_dedup=True)
+            logging.info("Using partially dedupped filtered files in dedup")
         else:
             data = load_data(signature_files,args.signature,args.cache_dir)
         with t(f"Cluster {lang}"):
             hash_clusters,n_samples = cluster_hashes(data,batch_size=args.batch_size,num_workers=num_cpus,signature=args.signature)
-        print(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
+        logging.info(f"Time clustering: {format_duration(int(t.elapsed_times.get(f'Cluster {lang}', 0)))}")
         with t(f"Dedup {lang}"):
             n_samples_after_dedup=deduplicate(hash_clusters,data,batch_size=args.batch_size,num_proc=num_cpus,output_path=output_file)
-        print(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")            
-        print(f"Len before dedup: {n_samples}")
-        print(f"Len after dedup: {n_samples_after_dedup}")
-        del hash_clusters
-    
+        logging.info(f"Time dedup: {format_duration(int(t.elapsed_times.get(f'Dedup {lang}', 0)))}")            
+        logging.info(f"Len before dedup: {n_samples}")
+        logging.info(f"Len after dedup: {n_samples_after_dedup}")
+        logging.info(f"Ids written into: {output_file}")
+
     elif args.test:
         from hashlib import sha256
         from datasets import Dataset
