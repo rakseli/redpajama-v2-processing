@@ -21,6 +21,8 @@ if __name__ == "__main__":
     #creates approximately shuffed dataset
     #each 10000 rows are shuffeled and source shard of these rows is random for each buffer
     args = parser.parse_args()
+    if not os.path.exists(args.output_path):
+        os.mkdir(args.output_path)
     t = Timer()
     num_cpus=len(os.sched_getaffinity(0))-1
     all_files = gather_files(args.path)
