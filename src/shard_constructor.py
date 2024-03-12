@@ -66,16 +66,19 @@ srun \
 
 if __name__ == "__main__":
     args = parser.parse_args()    
-
-    for l in ["en","fr","es","de"]:
-        if l == 'fr':
-            s = create_slurm_scripts(f"shard_{l}",lang=l,cpus_per_task=1,time='00:15:00',mem_per_cpu=20000)
-        elif l=='de':
-            s = create_slurm_scripts(f"shard_{l}",lang=l,cpus_per_task=1,time='00:15:00',mem_per_cpu=20000)
-        elif l=='es':
-            s = create_slurm_scripts(f"shard_{l}",lang=l,cpus_per_task=1,time='00:15:00',mem_per_cpu=20000)
-        elif l=='en':
-            s = create_slurm_scripts(f"shard_{l}",lang=l,cpus_per_task=1,time='00:15:00',mem_per_cpu=20000)
+    if args.all:
+        for l in ["en","fr","es","de","it"]:
+            s = create_slurm_scripts(f"shard_{l}_shuffled",lang=l,cpus_per_task=1,time='02:00:00',mem_per_cpu=20000)
+            temp_file_name = f"{os.getcwd()}/slurm_job_{l}.sh"
+            with open(temp_file_name,"w") as temp_file:
+                temp_file.write(s)
+                # Submit the SLURM job using sbatch with the temporary file
+            subprocess.run(["sbatch", temp_file_name], text=True)
+            time.sleep(1)
+            os.remove(temp_file_name)
+    else:
+        l = args.lang
+        s = create_slurm_scripts(f"shard_{l}_iterated_round_2",lang=l,cpus_per_task=1,time='03:00:00',mem_per_cpu=20000)
         temp_file_name = f"{os.getcwd()}/slurm_job_{l}.sh"
         with open(temp_file_name,"w") as temp_file:
             temp_file.write(s)
@@ -83,4 +86,4 @@ if __name__ == "__main__":
         subprocess.run(["sbatch", temp_file_name], text=True)
         time.sleep(1)
         os.remove(temp_file_name)
-       
+    
